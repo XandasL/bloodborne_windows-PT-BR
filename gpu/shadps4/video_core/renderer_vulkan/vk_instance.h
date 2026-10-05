@@ -20,6 +20,8 @@ VK_DEFINE_HANDLE(VmaAllocator)
 
 namespace Vulkan {
 
+class DlssNgx;
+
 class Instance {
 public:
     explicit Instance(bool validation = false, bool crash_diagnostic = false);
@@ -28,6 +30,11 @@ public:
     /// Headless logical device for renderer regression tests (no window or game).
     explicit Instance(s32 physical_device_index, bool enable_validation);
     ~Instance();
+
+    /// Optional DLSS context; null when shadps4_dlss.dll is absent.
+    DlssNgx* GetDlssNgx() const {
+        return dlss_ngx.get();
+    }
 
     /// Returns a formatted string for the driver version
     std::string GetDriverVersionName();
@@ -506,6 +513,8 @@ private:
     [[nodiscard]] vk::FormatFeatureFlags2 GetFormatFeatureFlags(vk::Format format) const;
 
 private:
+    // Constructed before the Vulkan instance (it adds extensions); reset before device teardown.
+    std::unique_ptr<DlssNgx> dlss_ngx;
     vk::UniqueInstance instance;
     vk::PhysicalDevice physical_device;
     vk::UniqueDevice device;

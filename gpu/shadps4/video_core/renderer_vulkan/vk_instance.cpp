@@ -11,6 +11,7 @@
 #include "imgui/renderer/imgui_core.h"
 #include "sdl_window.h"
 #include "video_core/renderer_vulkan/liverpool_to_vk.h"
+#include "video_core/renderer_vulkan/vk_dlss_ngx.h"
 #include "video_core/renderer_vulkan/vk_instance.h"
 #include "video_core/renderer_vulkan/vk_platform.h"
 
@@ -89,8 +90,9 @@ std::string GetReadableVersion(u32 version) {
 } // Anonymous namespace
 
 Instance::Instance(bool enable_validation, bool enable_crash_diagnostic)
-    : instance{CreateInstance(Frontend::WindowSystemType::Headless, enable_validation,
-                              enable_crash_diagnostic)},
+    : dlss_ngx{DlssNgx::Create()},
+      instance{CreateInstance(Frontend::WindowSystemType::Headless, enable_validation,
+                              enable_crash_diagnostic, dlss_ngx.get())},
       physical_devices{EnumeratePhysicalDevices(instance)} {}
 
 Instance::Instance(Frontend::WindowSDL& window, s32 physical_device_index,
@@ -102,7 +104,8 @@ Instance::Instance(s32 index, bool validation)
 
 Instance::Instance(const Frontend::WindowSystemInfo& window_info, s32 physical_device_index,
                    bool enable_validation, bool enable_crash_diagnostic)
-    : instance{CreateInstance(window_info.type, enable_validation, enable_crash_diagnostic)},
+    : dlss_ngx{DlssNgx::Create()},
+      instance{CreateInstance(window_info.type, enable_validation, enable_crash_diagnostic, dlss_ngx.get())},
       physical_devices{EnumeratePhysicalDevices(instance)} {
     if (enable_validation) {
         debug_callback = CreateDebugCallback(*instance);
@@ -184,7 +187,10 @@ Instance::Instance(const Frontend::WindowSystemInfo& window_info, s32 physical_d
 }
 
 Instance::~Instance() {
-    ImGui::Core::Shutdown(GetDevice());
+    dlss_ngx.reset();
+    if (ImGui::GetCurrentContext()) {
+        ImGui::Core::Shutdown(GetDevice());
+    }
     vmaDestroyAllocator(allocator);
 }
 
@@ -236,7 +242,7 @@ bool Instance::CreateDevice() {
         return false;
     }
 
-    boost::container::static_vector<const char*, 32> enabled_extensions;
+    std::vector<const char*> enabled_extensions;
     const auto add_extension = [&](std::string_view extension) -> bool {
         const auto result =
             std::find_if(available_extensions.begin(), available_extensions.end(),
@@ -371,6 +377,10 @@ bool Instance::CreateDevice() {
     }
     const bool calibrated_timestamps =
         TRACY_GPU_ENABLED ? add_extension(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME) : false;
+
+    if (dlss_ngx) {
+        dlss_ngx->AppendDeviceExtensions(*instance, physical_device, enabled_extensions);
+    }
 
     const auto family_properties = physical_device.getQueueFamilyProperties();
     if (family_properties.empty()) {
@@ -621,6 +631,10 @@ bool Instance::CreateDevice() {
     device = std::move(dev);
 
     VULKAN_HPP_DEFAULT_DISPATCHER.init(*device);
+
+    if (dlss_ngx) {
+        dlss_ngx->Initialize(*instance, physical_device, *device);
+    }
 
     graphics_queue = device->getQueue(queue_family_index, 0);
     present_queue = device->getQueue(queue_family_index, 0);
