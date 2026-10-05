@@ -190,7 +190,7 @@ void BufferCache::DownloadMemory(const Buffer* arena, VAddr device_addr, u64 siz
     for (auto& copy : copies) {
         copy.dstOffset += download.offset;
     }
-    runtime.CopyBuffer(arena, download.buffer, copies);
+    runtime.CopyBuffer(arena, download.buffer, std::span{copies.data(), copies.size()});
     scheduler.Finish();
 
     download.buffer->Invalidate(download.offset, download.size);
@@ -499,7 +499,7 @@ void BufferCache::EnsureResident(const Buffer* arena, u64 first_block, u64 last_
     }
 
     staging.Flush();
-    runtime.CopyBuffer(staging.buffer, bda_pagetable_buffer.get(), copies);
+    runtime.CopyBuffer(staging.buffer, bda_pagetable_buffer.get(), std::span{copies.data(), copies.size()});
 }
 
 bool BufferCache::SynchronizeMemory(const Buffer* arena, VAddr device_addr, u32 size,
@@ -513,10 +513,10 @@ bool BufferCache::SynchronizeMemory(const Buffer* arena, VAddr device_addr, u32 
             copies.push_back(vk::BufferCopy{total_size_bytes, addr, size});
             total_size_bytes += size;
         },
-        [&] { src_buffer = UploadCopies(arena, copies, total_size_bytes); });
+        [&] { src_buffer = UploadCopies(arena, std::span{copies.data(), copies.size()}, total_size_bytes); });
 
     if (src_buffer) {
-        runtime.CopyBuffer(src_buffer, arena, copies);
+        runtime.CopyBuffer(src_buffer, arena, std::span{copies.data(), copies.size()});
     }
     if (is_texel_buffer && !is_written) {
         return SynchronizeMemoryFromImage(arena, device_addr, size);
@@ -659,7 +659,7 @@ bool BufferCache::SynchronizeMemoryFromImage(const Buffer* arena, VAddr device_a
         return false;
     }
     auto& tile_manager = texture_cache.GetTileManager();
-    tile_manager.TileImage(image, buffer_copies, arena, arena_offset);
+    tile_manager.TileImage(image, std::span{buffer_copies.data(), buffer_copies.size()}, arena, arena_offset);
     return true;
 }
 
