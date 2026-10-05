@@ -115,8 +115,12 @@ void Liverpool::Process(std::stop_token stoken) {
     }
 #endif
     gpu_id = std::this_thread::get_id();
-#ifdef __linux__
-    gpu_tid = gettid();
+#ifdef _WIN32
+    gpu_tid = static_cast<u32>(GetCurrentThreadId());
+#elif defined(__linux__)
+    gpu_tid = static_cast<u32>(gettid());
+#else
+    gpu_tid = 0;
 #endif
 
     while (!stoken.stop_requested()) {
