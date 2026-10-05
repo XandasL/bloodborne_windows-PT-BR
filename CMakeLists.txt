@@ -10,6 +10,8 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 
+find_package(Vulkan REQUIRED)
+
 # Global include directories
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
