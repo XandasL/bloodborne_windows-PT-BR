@@ -5,14 +5,30 @@
 #ifndef R_KERNEL_TYPES_H
 #define R_KERNEL_TYPES_H
 
-#include "runtime.h"
-#include "platform/bb_common.h"
-#include "platform/time.h"
-#include "platform/sync.h"
+#include <stdint.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#if __has_include("../../runtime.h")
+#include "../../runtime.h"
+#else
+#include "runtime.h"
+#endif
+#if __has_include("../../include/platform/bb_common.h")
+#include "../../include/platform/bb_common.h"
+#include "../../include/platform/time.h"
+#include "../../include/platform/sync.h"
+#else
+#include "platform/bb_common.h"
+#include "platform/time.h"
+#include "platform/sync.h"
+#endif
+
+#ifndef ABI
+#define ABI __attribute__((sysv_abi))
+#endif
 
 #define ERR(n) ((int32_t)(UINT32_C(0x80020000) | (n)))
 #define PAGE 16384

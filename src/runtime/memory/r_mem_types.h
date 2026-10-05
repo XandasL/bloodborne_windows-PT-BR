@@ -4,14 +4,28 @@
  */
 #ifndef R_MEM_TYPES_H
 #define R_MEM_TYPES_H
-#include "runtime.h"
-#include "platform/bb_common.h"
-#include "platform/sync.h"
-#include "platform/memory.h"
+#include <stdint.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#if __has_include("../../runtime.h")
+#include "../../runtime.h"
+#else
+#include "runtime.h"
+#endif
+#if __has_include("../../include/platform/bb_common.h")
+#include "../../include/platform/bb_common.h"
+#include "../../include/platform/sync.h"
+#include "../../include/platform/memory.h"
+#else
+#include "platform/bb_common.h"
+#include "platform/sync.h"
+#include "platform/memory.h"
+#endif
+
+typedef struct BbDirectPool BbDirectPool;
 
 #define PAGE UINT64_C(16384)
 #define USER_MIN UINT64_C(0x1000000000)

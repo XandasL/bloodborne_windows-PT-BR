@@ -5,11 +5,25 @@
 #ifndef LOADER_TYPES_H
 #define LOADER_TYPES_H
 
+#if __has_include("../runtime.h")
+#include "../runtime.h"
+#else
 #include "runtime.h"
+#endif
+#if __has_include("../../gpu/bbgpu.h")
+#include "../../gpu/bbgpu.h"
+#elif __has_include("gpu/bbgpu.h")
 #include "gpu/bbgpu.h"
+#endif
+#if __has_include("../include/platform/bb_common.h")
+#include "../include/platform/bb_common.h"
+#include "../include/platform/memory.h"
+#include "../include/platform/faults.h"
+#else
 #include "platform/bb_common.h"
 #include "platform/memory.h"
 #include "platform/faults.h"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

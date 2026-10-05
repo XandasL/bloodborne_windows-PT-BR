@@ -1,8 +1,9 @@
-/* Independent backend smoke test: command submission and readback, no game graphics. */
-#include <vulkan/vulkan.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#if __has_include(<vulkan/vulkan.h>)
+#include <vulkan/vulkan.h>
 #define CHECK(call) do { VkResult r = (call); if (r != VK_SUCCESS) { \
     fprintf(stderr, "Vulkan: %s returned %d\n", #call, r); exit(1); } } while (0)
 
@@ -60,3 +61,9 @@ int vulkan_smoke(void) {
     vkFreeMemory(device, allocation, NULL); vkDestroyDevice(device, NULL); vkDestroyInstance(instance, NULL);
     return ok ? 0 : 1;
 }
+#else
+int vulkan_smoke(void) {
+    fprintf(stderr, "Vulkan SDK headers not found at compile time\n");
+    return 1;
+}
+#endif
