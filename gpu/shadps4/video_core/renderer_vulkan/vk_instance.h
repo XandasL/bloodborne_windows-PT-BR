@@ -426,8 +426,8 @@ public:
 
     /// Returns the maximum number of samplers that can be allocated at once.
     u32 GetMaxSamplerAllocationCount() const {
-        if (driver_id == vk::DriverId::eMesaKosmickrisp) {
-            // FIXME: KosmicKrisp has an internal 1024 unique sampler limit before
+        if (driver_id == vk::DriverId::eMesaHoneykrisp) {
+            // FIXME: Honeykrisp has an internal 1024 unique sampler limit before
             // vkCreateSampler starts returning VK_ERROR_OUT_OF_HOST_MEMORY. Work
             // around this for now by reducing the value to 1024.
             return 1024;

@@ -12,6 +12,13 @@
 #include "video_core/renderer_vulkan/vk_pipeline_cache.h"
 
 #include <miniz.h>
+#ifndef MZ_ZIP_FLAG_READ_ALLOW_WRITING
+#ifdef MZ_ZIP_FLAG_WRITE_ALLOW_READING
+#define MZ_ZIP_FLAG_READ_ALLOW_WRITING MZ_ZIP_FLAG_WRITE_ALLOW_READING
+#else
+#define MZ_ZIP_FLAG_READ_ALLOW_WRITING 0
+#endif
+#endif
 
 #include <condition_variable>
 #include <functional>
