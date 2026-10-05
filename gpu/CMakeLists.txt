@@ -56,7 +56,7 @@ find_package(Vulkan REQUIRED)
 FetchContent_Declare(
     VulkanHeaders
     GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
-    GIT_TAG v1.3.296
+    GIT_TAG v1.4.304
 )
 FetchContent_MakeAvailable(VulkanHeaders)
 
