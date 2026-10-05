@@ -5,7 +5,7 @@
 [![C11](https://img.shields.io/badge/C-11-141414?style=for-the-badge&logo=c&logoColor=white)](https://en.cppreference.com/w/c)
 [![C++23](https://img.shields.io/badge/C++-23-141414?style=for-the-badge&logo=cplusplus&logoColor=white)](https://en.cppreference.com/w/cpp)
 [![SDL3](https://img.shields.io/badge/SDL-3.0+-141414?style=for-the-badge&logo=libsdl&logoColor=white)](https://www.libsdl.org/)
-[![License](https://img.shields.io/badge/License-MIT-141414?style=for-the-badge)](LICENSE)
+[![License: GPL v2+](https://img.shields.io/badge/License-GPLv2%2B-141414?style=for-the-badge&logo=gnu&logoColor=white)](LICENSE)
 
 **bloodborne_windows** is an edge-native, zero-CPU-emulation runner and modular high-performance HLE runtime for **Bloodborne** (PlayStation 4, CUSA03173, version 1.09) executing natively on 64-bit **Windows** and **Linux**. By decoupling operating system kernel and memory primitives into a strict single-responsibility modular architecture ($\le 75$ LOC per file), mapping the decrypted PS4 ELF image directly into host virtual memory below the 40-bit (< 1 TiB) address ceiling, and using AMD64 SysV ABI transitions with hardware Vectored Exception Handling (VEH) and page-file section aliasing, `bloodborne_windows` delivers native game execution speeds with **zero instruction-set emulation overhead**.
 
@@ -243,5 +243,5 @@ The script automatically executes the four preparation passes into `out/`:
 
 ## License
 
-This project is licensed under the **MIT License**.  
-See the [LICENSE](LICENSE) file for full terms and conditions.
+This repository is licensed under the **GNU General Public License v2.0 or later (GPL-2.0-or-later)** to preserve full legal compliance with the upstream [deadinside28/bloodborne_pc](https://github.com/deadinside28/bloodborne_pc) runner and [shadPS4](https://github.com/shadps4-emu/shadPS4) GPU video core.  
+See the [LICENSE](LICENSE) file for the full terms and conditions.
