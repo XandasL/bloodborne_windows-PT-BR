@@ -1742,10 +1742,14 @@ void Rasterizer::ResolveVertexBuffers(const GraphicsPipeline* pipeline,
     }
 
     struct BufferRange {
-        VAddr base_address;
-        VAddr end_address;
-        const VideoCore::Buffer* buffer;
-        u64 offset;
+        VAddr base_address{};
+        VAddr end_address{};
+        const VideoCore::Buffer* buffer{};
+        u64 offset{};
+
+        BufferRange() = default;
+        BufferRange(VAddr base, VAddr end, const VideoCore::Buffer* buf = nullptr, u64 off = 0)
+            : base_address(base), end_address(end), buffer(buf), offset(off) {}
 
         [[nodiscard]] size_t GetSize() const {
             return end_address - base_address;
@@ -1757,12 +1761,12 @@ void Rasterizer::ResolveVertexBuffers(const GraphicsPipeline* pipeline,
     VertexInputs<BufferRange> ranges_merged{};
     if (ready) {
         for (u32 i = 0; i < ready->num_ranges; ++i) {
-            ranges_merged.emplace_back(ready->ranges[i].base, ready->ranges[i].end);
+            ranges_merged.push_back(BufferRange{ready->ranges[i].base, ready->ranges[i].end});
         }
     } else {
         for (const auto& buffer : guest_buffers) {
             if (buffer.base_address != 0 && buffer.GetSize() > 0) {
-                ranges.emplace_back(buffer.base_address, buffer.base_address + buffer.GetSize());
+                ranges.push_back(BufferRange{buffer.base_address, buffer.base_address + buffer.GetSize()});
             }
         }
     }
