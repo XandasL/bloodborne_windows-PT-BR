@@ -6,6 +6,7 @@
 [![C++23](https://img.shields.io/badge/C++-23-141414?style=for-the-badge&logo=cplusplus&logoColor=white)](https://en.cppreference.com/w/cpp)
 [![SDL3](https://img.shields.io/badge/SDL-3.0+-141414?style=for-the-badge&logo=libsdl&logoColor=white)](https://www.libsdl.org/)
 [![License: GPL v2+](https://img.shields.io/badge/License-GPLv2%2B-141414?style=for-the-badge&logo=gnu&logoColor=white)](LICENSE)
+[![CI / CD Build](https://github.com/GuruMachanica/bloodborne_windows/actions/workflows/build-and-release.yml/badge.svg)](https://github.com/GuruMachanica/bloodborne_windows/actions/workflows/build-and-release.yml)
 
 **bloodborne_windows** is an edge-native, zero-CPU-emulation runner and modular high-performance HLE runtime for **Bloodborne** (PlayStation 4, CUSA03173, version 1.09) executing natively on 64-bit **Windows** and **Linux**. By decoupling operating system kernel and memory primitives into a strict single-responsibility modular architecture ($\le 75$ LOC per file), mapping the decrypted PS4 ELF image directly into host virtual memory below the 40-bit (< 1 TiB) address ceiling, and using AMD64 SysV ABI transitions with hardware Vectored Exception Handling (VEH) and page-file section aliasing, `bloodborne_windows` delivers native game execution speeds with **zero instruction-set emulation overhead**.
 
