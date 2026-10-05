@@ -8,19 +8,19 @@ This document tracks the phased empirical verification of `bloodborne_windows` o
 
 ### Phase 1: Host Toolchain & Compilation Correctness
 - [x] **SysV AMD64 ABI Verification:** Ensure host compiler natively generates SysV ABI call gates (`__attribute__((sysv_abi))`) for direct guest execution without clobbering registers (Clang / MinGW GCC verified; MSVC `cl.exe` guarded with compile-time check).
-- [x] **Unified Memory Pool Struct:** Structure divergence between `mem_direct.c` and `mem_alias.c` resolved via [`src/platform/memory/windows/mem_internal.h`](file:///c:/Desktop/Stand-Up/Projects/Games/bloodborne_windows/src/platform/memory/windows/mem_internal.h).
-- [x] **Portable Atomics:** Compiler-specific builtins replaced with portable CAS (`bb_atomic_cas_ptr`) in [`src/include/bb_common.h`](file:///c:/Desktop/Stand-Up/Projects/Games/bloodborne_windows/src/include/bb_common.h). Verified under multi-threaded concurrency.
-- [x] **CMake Windows Portability:** Removed unconditional `pkg_check_modules` calls from [`gpu/CMakeLists.txt`](file:///c:/Desktop/Stand-Up/Projects/Games/bloodborne_windows/gpu/CMakeLists.txt).
+- [x] **Unified Memory Pool Struct:** Structure divergence between `mem_direct.c` and `mem_alias.c` resolved via [`src/platform/memory/windows/mem_internal.h`](../src/platform/memory/windows/mem_internal.h).
+- [x] **Portable Atomics:** Compiler-specific builtins replaced with portable CAS (`bb_atomic_cas_ptr`) in [`src/include/bb_common.h`](../src/include/bb_common.h). Verified under multi-threaded concurrency.
+- [x] **CMake Windows Portability:** Removed unconditional `pkg_check_modules` calls from [`gpu/CMakeLists.txt`](../gpu/CMakeLists.txt).
 - [ ] Full CMake project link (`bbgpu.dll` & `bb-probe.exe`).
 
 ---
 
 ### Phase 2: Low-Level Host Platform Smoke Tests
 - [x] **Vulkan Smoke Test:** Executed on native hardware via `src/vulkan_smoke.c`. Automatically selected discrete **`NVIDIA GeForce RTX 4050 Laptop GPU`**, submitted graphics/transfer command buffer, executed memory barrier, and completed 4096-byte readback (**PASS**).
-- [x] **Physical Memory Aliasing:** Verified via [`tests/test_win32_platform_memory.c`](file:///c:/Desktop/Stand-Up/Projects/Games/bloodborne_windows/tests/test_win32_platform_memory.c). Two distinct virtual address spans (`0x...10000` & `0x...20000`) mapped to physical pool via `MapViewOfFileEx`; verified physical write coherency (`0xDEADBEEF`, `0xC001CAFE`) and commit hole punch zeroing (**PASS**).
-- [x] **Vectored Exception Handling (VEH):** Verified via [`tests/test_win32_platform_veh.c`](file:///c:/Desktop/Stand-Up/Projects/Games/bloodborne_windows/tests/test_win32_platform_veh.c). Intercepted `EXCEPTION_ACCESS_VIOLATION` on `PAGE_NOACCESS`, repaired page protection on-the-fly, transparently resumed thread execution, and verified `setjmp`/`longjmp` recovery (**PASS**).
-- [x] **Threads, Mutex, Semaphore & TLS:** Verified via [`tests/test_win32_platform_threads_sync.c`](file:///c:/Desktop/Stand-Up/Projects/Games/bloodborne_windows/tests/test_win32_platform_threads_sync.c). Spawned concurrent worker threads via `_beginthreadex`, tested C11 `_Thread_local` guest TCB isolation, critical section mutex counter, and semaphore signaling (**PASS**).
-- [x] **Win32 Filesystem:** Verified via [`tests/test_win32_platform_fs.c`](file:///c:/Desktop/Stand-Up/Projects/Games/bloodborne_windows/tests/test_win32_platform_fs.c). Created, wrote, read, stat, and enumerated directory files via Win32 API (**PASS**).
+- [x] **Physical Memory Aliasing:** Verified via [`tests/test_win32_platform_memory.c`](../tests/test_win32_platform_memory.c). Two distinct virtual address spans (`0x...10000` & `0x...20000`) mapped to physical pool via `MapViewOfFileEx`; verified physical write coherency (`0xDEADBEEF`, `0xC001CAFE`) and commit hole punch zeroing (**PASS**).
+- [x] **Vectored Exception Handling (VEH):** Verified via [`tests/test_win32_platform_veh.c`](../tests/test_win32_platform_veh.c). Intercepted `EXCEPTION_ACCESS_VIOLATION` on `PAGE_NOACCESS`, repaired page protection on-the-fly, transparently resumed thread execution, and verified `setjmp`/`longjmp` recovery (**PASS**).
+- [x] **Threads, Mutex, Semaphore & TLS:** Verified via [`tests/test_win32_platform_threads_sync.c`](../tests/test_win32_platform_threads_sync.c). Spawned concurrent worker threads via `_beginthreadex`, tested C11 `_Thread_local` guest TCB isolation, critical section mutex counter, and semaphore signaling (**PASS**).
+- [x] **Win32 Filesystem:** Verified via [`tests/test_win32_platform_fs.c`](../tests/test_win32_platform_fs.c). Created, wrote, read, stat, and enumerated directory files via Win32 API (**PASS**).
 - [ ] **Input Polling:** Confirm SDL3 detects connected XInput / DualShock 4 / DualSense controllers.
 
 ---
