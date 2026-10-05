@@ -9,7 +9,7 @@
 #include <setjmp.h>
 
 static BbFaultCallback gpu_callback = NULL;
-static jmp_buf* recovery_point = NULL;
+static _Thread_local jmp_buf* recovery_point = NULL;
 
 static LONG WINAPI VectoredHandler(PEXCEPTION_POINTERS ep) {
     if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION) {

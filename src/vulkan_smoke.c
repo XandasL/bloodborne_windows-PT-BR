@@ -16,7 +16,14 @@ int vulkan_smoke(void) {
     VkPhysicalDevice *devices = calloc(count, sizeof(*devices));
     if (!devices) exit(1);
     CHECK(vkEnumeratePhysicalDevices(instance, &count, devices));
-    VkPhysicalDevice physical = devices[0]; free(devices);
+    uint32_t chosen = 0;
+    for (uint32_t i = 0; i < count; ++i) {
+        VkPhysicalDeviceProperties prop;
+        vkGetPhysicalDeviceProperties(devices[i], &prop);
+        printf("  [Vulkan Device #%u] %s (Type: %d)\n", i, prop.deviceName, prop.deviceType);
+        if (prop.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) chosen = i;
+    }
+    VkPhysicalDevice physical = devices[chosen]; free(devices);
     VkPhysicalDeviceProperties properties; vkGetPhysicalDeviceProperties(physical, &properties);
     uint32_t nq = 0; vkGetPhysicalDeviceQueueFamilyProperties(physical, &nq, NULL);
     VkQueueFamilyProperties *families = calloc(nq, sizeof(*families));
