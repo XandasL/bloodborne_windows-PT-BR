@@ -36,7 +36,9 @@ private:
     struct HandlerEntry {
         T handler;
         u32 priority;
-        std::strong_ordering operator<=>(const HandlerEntry& right) const { return priority <=> right.priority; }
+        HandlerEntry(T h, u32 p) : handler(h), priority(p) {}
+        auto operator<=>(const HandlerEntry& right) const { return priority <=> right.priority; }
+        bool operator==(const HandlerEntry& right) const { return priority == right.priority; }
     };
     std::set<HandlerEntry<AccessViolationHandler>> access_violation_handlers;
     std::set<HandlerEntry<IllegalInstructionHandler>> illegal_instruction_handlers;

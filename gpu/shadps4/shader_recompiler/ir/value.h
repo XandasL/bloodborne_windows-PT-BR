@@ -21,7 +21,7 @@ struct AssociatedInsts;
 
 class Value {
 public:
-    Value() noexcept = default;
+    Value() noexcept : type{Type::Opaque}, inst{nullptr} {}
     explicit Value(IR::Inst* value) noexcept : type{Type::Opaque}, inst{value} {}
     explicit Value(IR::ScalarReg reg) noexcept : type{Type::ScalarReg}, sreg{reg} {}
     explicit Value(IR::VectorReg reg) noexcept : type{Type::VectorReg}, vreg{reg} {}

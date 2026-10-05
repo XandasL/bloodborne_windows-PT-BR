@@ -42,7 +42,7 @@ struct RegTag {
         IR::VirtualReg reg;
     };
 
-    RegTag() = default;
+    constexpr RegTag() noexcept : type{RegType::None}, index{0} {}
     RegTag(IR::ScalarReg reg) : type{RegType::ScalarReg}, sreg{reg} {}
     RegTag(IR::VectorReg reg) : type{RegType::VectorReg}, vreg{reg} {}
     RegTag(IR::VirtualReg reg_) : type{RegType::VirtualReg}, reg{reg_} {}

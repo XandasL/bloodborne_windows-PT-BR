@@ -44,6 +44,7 @@ struct Program {
     struct Module {
         vk::ShaderModule module;
         Shader::StageSpecialization spec;
+        Module(vk::ShaderModule m, Shader::StageSpecialization s) : module(m), spec(s) {}
     };
     static constexpr size_t MaxPermutations = 8;
     using ModuleList = boost::container::small_vector<Module, MaxPermutations>;

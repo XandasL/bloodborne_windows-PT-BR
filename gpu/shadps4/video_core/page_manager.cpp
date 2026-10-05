@@ -297,6 +297,12 @@ public:
             throw std::runtime_error("userfaultfd");
         }
 
+#ifndef UFFD_FEATURE_WP_HUGETLBFS_SHMEM
+#define UFFD_FEATURE_WP_HUGETLBFS_SHMEM (1ULL << 12)
+#endif
+#ifndef UFFD_FEATURE_WP_UNPOPULATED
+#define UFFD_FEATURE_WP_UNPOPULATED (1ULL << 13)
+#endif
         // Guest memory is a shared memfd mapping: write-protection there needs the shmem
         // feature, and unpopulated pages must be protectable too.
         uffdio_api api{};

@@ -891,6 +891,7 @@ private:
     struct PendingOp {
         Common::UniqueFunction<void> callback;
         u64 gpu_tick;
+        PendingOp(Common::UniqueFunction<void> cb, u64 tick) : callback(std::move(cb)), gpu_tick(tick) {}
     };
     std::queue<PendingOp> pending_ops;
     std::recursive_mutex pending_ops_mutex;
