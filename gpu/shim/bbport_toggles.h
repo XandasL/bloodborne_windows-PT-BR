@@ -7,6 +7,16 @@
 #include <cstdint>
 #include <cstdlib>
 
+#ifdef _WIN32
+typedef jmp_buf sigjmp_buf;
+#ifndef sigsetjmp
+#define sigsetjmp(env, savesigs) setjmp(env)
+#endif
+#ifndef siglongjmp
+#define siglongjmp(env, val) longjmp(env, val)
+#endif
+#endif
+
 extern "C" std::uint64_t runtime_disabled_optimizations;
 /// Recovery point for speculative guest memory reads on this thread (runtime_memory.c).
 extern "C" __thread sigjmp_buf* runtime_fault_recover;

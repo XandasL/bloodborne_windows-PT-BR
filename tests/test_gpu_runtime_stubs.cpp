@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <cstddef>
 #include <setjmp.h>
+#ifdef _WIN32
+typedef jmp_buf sigjmp_buf;
+#endif
 // Renderer tests have no guest process. Clock/host-thread services work; guest accesses abort.
 extern "C" {
 thread_local sigjmp_buf* runtime_fault_recover = nullptr;
