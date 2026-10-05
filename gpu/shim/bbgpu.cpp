@@ -3,7 +3,6 @@
 #include "bbport_overlay.h"
 #include "bbport_settings.h"
 #include "bbport_copy.h"
-#include <sys/resource.h>
 #include "bbport_toggles.h"
 #include <algorithm>
 #include <atomic>

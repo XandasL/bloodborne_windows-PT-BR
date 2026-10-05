@@ -1,9 +1,0 @@
---target=x86_64-w64-mingw32
--std=c11
--Isrc
--Isrc/include
--Iinclude
--I.
--DWIN32
--D_WIN32
--D_CRT_SECURE_NO_WARNINGS

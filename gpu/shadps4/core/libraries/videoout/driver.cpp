@@ -7,7 +7,6 @@
 #include <chrono>
 #include <cstdio>
 #include <time.h>
-#include <sys/resource.h>
 #include "common/assert.h"
 #include "bbport_toggles.h"
 #include "video_core/renderer_vulkan/vk_frame_capture.h"

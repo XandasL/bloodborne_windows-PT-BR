@@ -114,6 +114,7 @@ private:
     struct ArenaBinds {
         const Buffer* arena;
         boost::container::small_vector<vk::SparseMemoryBind, 32> binds;
+        ArenaBinds(const Buffer* a) : arena(a), binds{} {}
     };
 
     ArenaBinds* BindsForArena(const Buffer* arena) {

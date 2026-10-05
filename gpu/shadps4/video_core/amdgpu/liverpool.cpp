@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <chrono>
+#ifndef _WIN32
 #include <pthread.h>
 #include <sys/resource.h>
+#endif
 #include <time.h>
 #include "bbport_copy.h"
 #include "bbport_toggles.h"
@@ -102,9 +104,11 @@ void Liverpool::ProcessCommands() {
 
 void Liverpool::Process(std::stop_token stoken) {
     Common::SetCurrentThreadName("shadPS4:GpuCommandProcessor");
+#ifndef _WIN32
     if (clockid_t clock; pthread_getcpuclockid(pthread_self(), &clock) == 0) {
         BbStats::gpu_thread_clock.store(static_cast<int>(clock));
     }
+#endif
     gpu_id = std::this_thread::get_id();
 #ifdef __linux__
     gpu_tid = gettid();
@@ -1348,6 +1352,7 @@ Liverpool::Task Liverpool::ProcessCompute(std::span<const u32> acb, u32 vqid) {
     struct IndirectPatch {
         const PM4Header* header;
         VAddr indirect_addr;
+        IndirectPatch(const PM4Header* h, VAddr a) : header(h), indirect_addr(a) {}
     };
     boost::container::small_vector<IndirectPatch, 4> indirect_patches;
 

@@ -4,7 +4,6 @@
  */
 #include "r_kernel_types.h"
 #include "platform/threads.h"
-#include <unistd.h>
 
 ABI int32_t get_pagesize(void) { return PAGE; }
 ABI int32_t get_pid(void) { return 1000; }

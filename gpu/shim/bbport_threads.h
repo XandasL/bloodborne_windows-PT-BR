@@ -6,9 +6,41 @@
 #pragma once
 
 #include <algorithm>
+#include <thread>
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+
+namespace BbThreads {
+
+/// Hardware threads available to the process.
+inline unsigned Available() {
+    DWORD_PTR processAffinityMask = 0;
+    DWORD_PTR systemAffinityMask = 0;
+    if (GetProcessAffinityMask(GetCurrentProcess(), &processAffinityMask, &systemAffinityMask) && processAffinityMask != 0) {
+        unsigned count = 0;
+        while (processAffinityMask) {
+            count += static_cast<unsigned>(processAffinityMask & 1);
+            processAffinityMask >>= 1;
+        }
+        return std::max(1u, count);
+    }
+    return std::max(1u, std::thread::hardware_concurrency());
+}
+
+/// The calling thread only runs on otherwise idle cores (falls back to the lowest priority).
+inline void MakeBackground() {
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_LOWEST);
+}
+
+} // namespace BbThreads
+
+#else
 #include <sched.h>
 #include <sys/resource.h>
-#include <thread>
 #include <unistd.h>
 
 namespace BbThreads {
@@ -32,3 +64,4 @@ inline void MakeBackground() {
 }
 
 } // namespace BbThreads
+#endif

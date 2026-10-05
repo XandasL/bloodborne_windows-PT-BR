@@ -1,2 +1,43 @@
+CompileFlags:
+  Add:
+    - -Isrc
+    - -Isrc/include
+    - -Iinclude
+    - -I.
+    - -Igpu
+    - -Igpu/shim
+    - -Igpu/shadps4
+    - -DWIN32
+    - -D_WIN32
+    - -D_CRT_SECURE_NO_WARNINGS
+    - -DNOMINMAX
+
+---
+If:
+  PathMatch: src/.*
+CompileFlags:
+  Add:
+    - -std=c11
+
+---
+If:
+  PathMatch: (gpu/.*|tests/.*)
+CompileFlags:
+  Add:
+    - -std=c++20
+    - -Igpu/third_party/imgui
+    - -Igpu/third_party/gcn/include
+    - -Igpu/third_party/half/include
+    - -DBOOST_ASIO_STANDALONE
+
+---
+If:
+  PathMatch: gpu/.*\.h
+CompileFlags:
+  Add:
+    - -x
+    - c++-header
+
+---
 Diagnostics:
   UnusedIncludes: None
