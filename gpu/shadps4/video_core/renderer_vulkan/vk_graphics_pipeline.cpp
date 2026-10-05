@@ -70,10 +70,17 @@ GraphicsPipeline::GraphicsPipeline(
         }
     }
 
+#if defined(VK_VERSION_1_4)
     const vk::PipelineVertexInputDivisorStateCreateInfo divisor_state = {
         .vertexBindingDivisorCount = static_cast<u32>(sdata.divisors.size()),
         .pVertexBindingDivisors = sdata.divisors.data(),
     };
+#else
+    const vk::PipelineVertexInputDivisorStateCreateInfoEXT divisor_state = {
+        .vertexBindingDivisorCount = static_cast<u32>(sdata.divisors.size()),
+        .pVertexBindingDivisors = sdata.divisors.data(),
+    };
+#endif
 
     const vk::PipelineVertexInputStateCreateInfo vertex_input_info = {
         .pNext = sdata.divisors.empty() ? nullptr : &divisor_state,

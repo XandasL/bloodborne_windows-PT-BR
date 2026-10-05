@@ -296,6 +296,10 @@ public:
         return IsFsr4Int8Supported() && mixed_float_dot_product;
     }
 
+    bool IsFsr4Supported() const {
+        return IsFsr411Supported();
+    }
+
     /// VK_KHR_shader_clock is supported.
     bool IsShaderSubgroupClockSupported() const {
         return shader_clock && shader_clock_features.shaderSubgroupClock;
