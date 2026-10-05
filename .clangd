@@ -7,34 +7,39 @@ CompileFlags:
     - -Igpu
     - -Igpu/shim
     - -Igpu/shadps4
+    - -Igpu/third_party/imgui
+    - -Igpu/third_party/imgui/backends
+    - -Igpu/third_party/gcn/include
+    - -Igpu/third_party/half/include
     - -DWIN32
     - -D_WIN32
     - -D_CRT_SECURE_NO_WARNINGS
     - -DNOMINMAX
+    - -DBOOST_ASIO_STANDALONE
+  Remove:
+    - -std=c11
+    - -std=gnu11
 
 ---
 If:
-  PathMatch: src/.*
+  PathMatch: .*\.c$
 CompileFlags:
   Add:
     - -std=c11
 
 ---
 If:
-  PathMatch: (gpu/.*|tests/.*)
+  PathMatch: .*\.(cpp|cc|cxx)$
 CompileFlags:
   Add:
     - -std=c++20
-    - -Igpu/third_party/imgui
-    - -Igpu/third_party/gcn/include
-    - -Igpu/third_party/half/include
-    - -DBOOST_ASIO_STANDALONE
 
 ---
 If:
-  PathMatch: gpu/.*\.h
+  PathMatch: .*gpu.*\.h$
 CompileFlags:
   Add:
+    - -std=c++20
     - -x
     - c++-header
 
