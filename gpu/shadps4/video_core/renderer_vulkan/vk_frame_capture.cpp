@@ -5,8 +5,8 @@
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
-#include <format>
 #include <mutex>
+#include <fmt/format.h>
 
 #include "video_core/renderer_vulkan/vk_common.h"
 #include "video_core/texture_cache/image_info.h"
@@ -64,7 +64,7 @@ std::string Describe(const Target& t) {
     if (!t.address) {
         return "-";
     }
-    return std::format("{:#x} {} {}x{}", t.address, vk::to_string(t.format), t.width, t.height);
+    return fmt::format("{:#x} {} {}x{}", t.address, vk::to_string(t.format), t.width, t.height);
 }
 
 void AddSampled(Entry& entry) {
@@ -86,7 +86,7 @@ void AddShader(Entry& entry, u64 hash) {
 void Write(VAddr presented) {
     const char* dir = std::getenv("BB_CAPTURE_DIR");
     const std::string path =
-        std::format("{}/frame_{}.txt", dir ? dir : ".", static_cast<long long>(std::time(nullptr)));
+        fmt::format("{}/frame_{}.txt", dir ? dir : ".", static_cast<long long>(std::time(nullptr)));
     FILE* f = std::fopen(path.c_str(), "w");
     if (!f) {
         std::printf("Frame capture: cannot write %s\n", path.c_str());
@@ -237,7 +237,7 @@ void FrameCapture::Dispatch(u64 cs_hash, u32 x, u32 y, u32 z) {
         ++entries.back().draws;
     } else {
         entries.push_back({.compute = true, .draws = 1, .shaders = {cs_hash}});
-        entries.back().note = std::format("groups {}x{}x{}", x, y, z);
+        entries.back().note = fmt::format("groups {}x{}x{}", x, y, z);
     }
     AddSampled(entries.back());
     AddBuffers(entries.back());
@@ -246,14 +246,14 @@ void FrameCapture::Dispatch(u64 cs_hash, u32 x, u32 y, u32 z) {
 
 void FrameCapture::Buffer(u64 stage_hash, u32 slot, VAddr address, const void* data, u64 size) {
     const u64 bytes = std::min<u64>(size, 1024) & ~u64(3);
-    std::string out = std::format("  buffer stage {:016x} slot {} at {:#x} size {}:", stage_hash,
+    std::string out = fmt::format("  buffer stage {:016x} slot {} at {:#x} size {}:", stage_hash,
                                   slot, address, size);
     const auto* words = static_cast<const float*>(data);
     for (u64 i = 0; i < bytes / 4; ++i) {
         if (i % 8 == 0) {
-            out += std::format("\n    [{:3}]", i);
+            out += fmt::format("\n    [{:3}]", i);
         }
-        out += std::format(" {:12.6g}", words[i]);
+        out += fmt::format(" {:12.6g}", words[i]);
     }
     pending_buffers.push_back(std::move(out));
 }

@@ -109,12 +109,18 @@ public:
                          VertexInputs<AmdGpu::Buffer>& guest_buffers, u32 step_rate_0,
                          u32 step_rate_1) const;
 
+    /// Same pipeline rendering into the RGBA16F velocity mirror (temporal DLSS only).
+    vk::Pipeline VelocityMirrorHandle() const {
+        return velocity_mirror ? *velocity_mirror : vk::Pipeline{};
+    }
+
 private:
     void BuildDescSetLayout(bool preloading);
 
 private:
     GraphicsPipelineKey key;
     std::optional<const Shader::Gcn::FetchShaderData> fetch_shader{};
+    vk::UniquePipeline velocity_mirror;
 };
 
 struct ClipDistanceShaderKey {
