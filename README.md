@@ -199,6 +199,10 @@ If successful, Vulkan initializes, verifies device queues, dispatches a test buf
 
 ### 3. Game Preparation & Launch Pipeline
 
+> [!TIP]
+> **Complete Dumping & Asset Setup Guide:**  
+> For detailed step-by-step instructions on dumping your game from a PS4, decrypting `eboot.bin`, and verifying files, see the [**Complete How to Run Bloodborne Guide**](docs/HOW_TO_RUN_BLOODBORNE.md).
+
 Once your decrypted **CUSA03173** directory is ready:
 
 1. Specify the path to your dumped game folder:
