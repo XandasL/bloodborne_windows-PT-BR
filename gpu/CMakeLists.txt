@@ -43,15 +43,45 @@ elseif (BB_PGO STREQUAL "use")
                         -fprofile-correction -Wno-missing-profile -Wno-coverage-mismatch)
 endif()
 
-include(FetchContent)
+if (POLICY CMP0167)
+    cmake_policy(SET CMP0167 OLD)
+endif()
 
 find_package(Vulkan REQUIRED)
+
+# Boost headers discovery and fallback
 find_package(Boost QUIET)
 if (NOT TARGET Boost::headers)
-    if (DEFINED ENV{BOOST_ROOT})
+    if (DEFINED ENV{BOOST_ROOT} AND EXISTS "$ENV{BOOST_ROOT}")
         set(BOOST_ROOT "$ENV{BOOST_ROOT}")
+        set(BOOST_INCLUDEDIR "$ENV{BOOST_ROOT}")
+        find_package(Boost QUIET)
     endif()
-    find_package(Boost REQUIRED)
+endif()
+if (NOT TARGET Boost::headers)
+    file(GLOB BOOST_CANDIDATES "C:/boost*" "C:/local/boost*" "$ENV{BOOST_ROOT}")
+    foreach(CANDIDATE ${BOOST_CANDIDATES})
+        if (EXISTS "${CANDIDATE}/boost/version.hpp")
+            add_library(Boost::headers INTERFACE IMPORTED GLOBAL)
+            target_include_directories(Boost::headers INTERFACE "${CANDIDATE}")
+            break()
+        elseif (EXISTS "${CANDIDATE}/include/boost/version.hpp")
+            add_library(Boost::headers INTERFACE IMPORTED GLOBAL)
+            target_include_directories(Boost::headers INTERFACE "${CANDIDATE}/include")
+            break()
+        endif()
+    endforeach()
+endif()
+if (NOT TARGET Boost::headers)
+    message(STATUS "Boost headers not found on system. Fetching header-only Boost 1.84.0...")
+    FetchContent_Declare(
+        boost_headers
+        URL https://github.com/boostorg/boost/releases/download/boost-1.84.0/boost-1.84.0.tar.xz
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    FetchContent_MakeAvailable(boost_headers)
+    add_library(Boost::headers INTERFACE IMPORTED GLOBAL)
+    target_include_directories(Boost::headers INTERFACE ${boost_headers_SOURCE_DIR})
 endif()
 
 # 1. fmt

@@ -44,25 +44,20 @@ jobs:
           echo "VULKAN_SDK=$vulkanPath" >> $env:GITHUB_ENV
           echo "$vulkanPath\bin" >> $env:GITHUB_PATH
 
-      - name: Locate Boost
+      - name: Install Boost Headers
         shell: pwsh
         run: |
-          $boostCandidate = $null
-          if ($env:BOOST_ROOT_1_83_0 -and (Test-Path $env:BOOST_ROOT_1_83_0)) {
-            $boostCandidate = $env:BOOST_ROOT_1_83_0
-          } elseif ($env:BOOST_ROOT -and (Test-Path $env:BOOST_ROOT)) {
-            $boostCandidate = $env:BOOST_ROOT
-          } else {
-            $found = Get-ChildItem -Path "C:\hostedtoolcache\windows\Boost" -Directory -Recurse -Depth 2 -Filter "include" -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($found) { $boostCandidate = $found.Parent.FullName }
+          $boostDir = "C:\boost"
+          if (-not (Test-Path "$boostDir\boost\version.hpp")) {
+            Write-Host "Downloading Boost 1.84.0 headers..."
+            $boostArchive = "$env:RUNNER_TEMP\boost.tar.gz"
+            Invoke-WebRequest -Uri "https://github.com/boostorg/boost/releases/download/boost-1.84.0/boost-1.84.0.tar.gz" -OutFile $boostArchive
+            New-Item -ItemType Directory -Path $boostDir -Force | Out-Null
+            tar -xzf $boostArchive --strip-components=1 -C $boostDir
           }
-          if ($boostCandidate) {
-            Write-Host "Found Boost at: $boostCandidate"
-            echo "BOOST_ROOT=$boostCandidate" >> $env:GITHUB_ENV
-            echo "Boost_INCLUDE_DIR=$boostCandidate" >> $env:GITHUB_ENV
-          } else {
-            Write-Host "Boost directory not found in hostedtoolcache"
-          }
+          echo "BOOST_ROOT=$boostDir" >> $env:GITHUB_ENV
+          echo "BOOST_INCLUDEDIR=$boostDir" >> $env:GITHUB_ENV
+          echo "Boost_INCLUDE_DIR=$boostDir" >> $env:GITHUB_ENV
 
       - name: Set up Ninja
         uses: ashutoshvarma/setup-ninja@master
@@ -149,7 +144,7 @@ jobs:
             libboost-all-dev libfmt-dev libxxhash-dev \
             libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev \
             libx11-dev libx11-xcb-dev libxcb1-dev libwayland-dev \
-            libxcursor-dev libxinerama-dev libxi-dev libxrandr-dev libxss-dev libxxf86vm-dev \
+            libxcursor-dev libxinerama-dev libxi-dev libxrandr-dev libxss-dev libxxf86vm-dev libxtst-dev \
             libasound2-dev libpulse-dev libpipewire-0.3-dev libdecor-0-dev
 
       - name: Install SDL3 from Source
@@ -160,7 +155,8 @@ jobs:
             -DSDL_STATIC=ON \
             -DSDL_SHARED=ON \
             -DSDL_TESTS=OFF \
-            -DSDL_EXAMPLES=OFF
+            -DSDL_EXAMPLES=OFF \
+            -DSDL_X11_XTEST=OFF
           sudo cmake --build /tmp/sdl3/build --target install
           sudo ldconfig
           echo "PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/local/share/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
