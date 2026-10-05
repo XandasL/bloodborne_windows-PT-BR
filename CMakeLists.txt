@@ -61,10 +61,10 @@ add_executable(bb-probe ${PROBE_SOURCES})
 
 if (WIN32)
     target_compile_definitions(bb-probe PRIVATE _CRT_SECURE_NO_WARNINGS WIN32_LEAN_AND_MEAN NOMINMAX)
-    target_link_libraries(bb-probe PRIVATE bbgpu atrac9 PkgConfig::SDL3)
+    target_link_libraries(bb-probe PRIVATE bbgpu atrac9 PkgConfig::SDL3 Vulkan::Vulkan)
 else()
     target_compile_options(bb-probe PRIVATE -Wall -Wextra -Werror -no-pie -pthread)
-    target_link_libraries(bb-probe PRIVATE bbgpu atrac9 PkgConfig::SDL3 m pthread)
+    target_link_libraries(bb-probe PRIVATE bbgpu atrac9 PkgConfig::SDL3 Vulkan::Vulkan m pthread)
 endif()
 
 # -----------------------------------------------------------------------------

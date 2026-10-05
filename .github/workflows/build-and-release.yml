@@ -44,6 +44,26 @@ jobs:
           echo "VULKAN_SDK=$vulkanPath" >> $env:GITHUB_ENV
           echo "$vulkanPath\bin" >> $env:GITHUB_PATH
 
+      - name: Locate Boost
+        shell: pwsh
+        run: |
+          $boostCandidate = $null
+          if ($env:BOOST_ROOT_1_83_0 -and (Test-Path $env:BOOST_ROOT_1_83_0)) {
+            $boostCandidate = $env:BOOST_ROOT_1_83_0
+          } elseif ($env:BOOST_ROOT -and (Test-Path $env:BOOST_ROOT)) {
+            $boostCandidate = $env:BOOST_ROOT
+          } else {
+            $found = Get-ChildItem -Path "C:\hostedtoolcache\windows\Boost" -Directory -Recurse -Depth 2 -Filter "include" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { $boostCandidate = $found.Parent.FullName }
+          }
+          if ($boostCandidate) {
+            Write-Host "Found Boost at: $boostCandidate"
+            echo "BOOST_ROOT=$boostCandidate" >> $env:GITHUB_ENV
+            echo "Boost_INCLUDE_DIR=$boostCandidate" >> $env:GITHUB_ENV
+          } else {
+            Write-Host "Boost directory not found in hostedtoolcache"
+          }
+
       - name: Set up Ninja
         uses: ashutoshvarma/setup-ninja@master
         with:
@@ -55,10 +75,21 @@ jobs:
           arch: x64
 
       - name: Configure CMake (Windows)
+        shell: pwsh
         run: |
-          cmake -B build -G "Ninja" `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreadedDLL"
+          $cmakeArgs = @(
+            "-B", "build",
+            "-G", "Ninja",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DCMAKE_C_COMPILER=clang-cl",
+            "-DCMAKE_CXX_COMPILER=clang-cl",
+            "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL"
+          )
+          if ($env:BOOST_ROOT) {
+            $cmakeArgs += "-DBOOST_ROOT=$($env:BOOST_ROOT)"
+            $cmakeArgs += "-DBoost_INCLUDE_DIR=$($env:BOOST_ROOT)"
+          }
+          cmake @cmakeArgs
 
       - name: Build Windows Runner (bb-probe)
         run: |
@@ -114,10 +145,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential cmake ninja-build pkg-config python3 python3-pip \
-            libvulkan-dev vulkan-tools \
+            libvulkan-dev vulkan-tools glslang-tools \
             libboost-all-dev libfmt-dev libxxhash-dev \
-            libavcodec-dev libavutil-dev \
-            libx11-dev libx11-xcb-dev libxcb1-dev libwayland-dev
+            libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev \
+            libx11-dev libx11-xcb-dev libxcb1-dev libwayland-dev \
+            libxcursor-dev libxinerama-dev libxi-dev libxrandr-dev libxss-dev libxxf86vm-dev \
+            libasound2-dev libpulse-dev libpipewire-0.3-dev libdecor-0-dev
 
       - name: Install SDL3 from Source
         run: |
@@ -125,8 +158,13 @@ jobs:
           cmake -S /tmp/sdl3 -B /tmp/sdl3/build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DSDL_STATIC=ON \
-            -DSDL_SHARED=ON
+            -DSDL_SHARED=ON \
+            -DSDL_TESTS=OFF \
+            -DSDL_EXAMPLES=OFF
           sudo cmake --build /tmp/sdl3/build --target install
+          sudo ldconfig
+          echo "PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/local/share/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
       - name: Configure CMake (Linux)
         run: |
