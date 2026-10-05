@@ -198,7 +198,7 @@ struct ComputePass {
                                 .descriptorCount = 1,
                                 .stageFlags = vk::ShaderStageFlagBits::eCompute});
         descriptors = Make(device.createDescriptorSetLayoutUnique(
-                               {.flags = vk::DescriptorSetLayoutCreateFlagBits::ePushDescriptor,
+                               {.flags = vk::DescriptorSetLayoutCreateFlagBits::ePushDescriptorKHR,
                                 .bindingCount = static_cast<u32>(bindings.size()),
                                 .pBindings = bindings.data()}),
                            "temporal DLSS descriptor layout");

@@ -165,7 +165,7 @@ static bool ExecuteCopyShaderHLE(const Shader::Info& info, const AmdGpu::Compute
         const u32 local_dst_offset = dst_idx * buf_stride;
         const u32 local_src_offset = src_idx * buf_stride;
         const u32 local_size = (end + 1) * buf_stride;
-        copies.emplace_back(local_src_offset, local_dst_offset, local_size);
+        copies.push_back(vk::BufferCopy{local_src_offset, local_dst_offset, local_size});
     }
 
     // bbport: 64 KiB instead of 64 MiB. The copies are a few KiB spread over up to 57 MiB, and

@@ -494,7 +494,7 @@ void BufferCache::EnsureResident(const Buffer* arena, u64 first_block, u64 last_
             *(bda_addrs++) = arena->BufferDeviceAddress() + bind.resourceOffset + block;
         }
         const u64 copy_size = (backing.end - backing.start) * sizeof(vk::DeviceAddress);
-        copies.emplace_back(offset, backing.start * sizeof(vk::DeviceAddress), copy_size);
+        copies.push_back(vk::BufferCopy{offset, backing.start * sizeof(vk::DeviceAddress), copy_size});
         offset += copy_size;
     }
 
@@ -510,7 +510,7 @@ bool BufferCache::SynchronizeMemory(const Buffer* arena, VAddr device_addr, u32 
     memory_tracker->ForEachUploadRange(
         device_addr, size, is_written,
         [&](u64 addr, u64 size) {
-            copies.emplace_back(total_size_bytes, addr, size);
+            copies.push_back(vk::BufferCopy{total_size_bytes, addr, size});
             total_size_bytes += size;
         },
         [&] { src_buffer = UploadCopies(arena, copies, total_size_bytes); });
