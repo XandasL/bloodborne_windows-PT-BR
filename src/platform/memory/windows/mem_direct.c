@@ -4,15 +4,10 @@
  */
 #ifdef _WIN32
 #include "platform/memory.h"
+#include "mem_internal.h"
 #include <windows.h>
 #include <stdlib.h>
 #include <string.h>
-
-struct BbDirectPool {
-    HANDLE section_handle;
-    void* backing_base;
-    size_t pool_size;
-};
 
 BbDirectPool* bb_platform_direct_create(size_t size) {
     BbDirectPool* pool = (BbDirectPool*)calloc(1, sizeof(BbDirectPool));

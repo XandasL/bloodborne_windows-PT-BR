@@ -5,12 +5,8 @@
 #ifndef _WIN32
 #define _GNU_SOURCE
 #include "platform/memory.h"
+#include "mem_internal.h"
 #include <sys/mman.h>
-
-struct BbDirectPool {
-    int fd;
-    size_t pool_size;
-};
 
 static int ToPosixProt(int prot) {
     int p = PROT_NONE;

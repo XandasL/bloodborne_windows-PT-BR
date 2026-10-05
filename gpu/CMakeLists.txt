@@ -136,7 +136,9 @@ set(COMMON
     shadps4/common/string_util.cpp shadps4/common/thread.cpp shadps4/common/signal_context.cpp
     shim/common/logging/log.cpp)
 file(GLOB AVPLAYER CONFIGURE_DEPENDS shadps4/core/libraries/avplayer/*.cpp)
-pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavformat libavcodec libavutil libswscale libswresample)
+if (NOT WIN32)
+    pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavformat libavcodec libavutil libswscale libswresample)
+endif()
 file(GLOB SHIM_SOURCES CONFIGURE_DEPENDS shim/*.cpp shim/*/*.cpp)
 add_library(bbgpu SHARED ${VIDEO_CORE} ${RECOMPILER} ${COMMON} ${SHIM_SOURCES}
     shadps4/core/libraries/gnmdriver/gnmdriver.cpp

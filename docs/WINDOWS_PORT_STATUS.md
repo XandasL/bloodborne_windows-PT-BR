@@ -1,6 +1,8 @@
 # Windows Port Status Matrix: `bloodborne_windows`
 
-This document tracks the complete migration of `bbport` subsystems (forked from [deadinside28/bloodborne_pc](https://github.com/deadinside28/bloodborne_pc)) from Linux-only monolithic implementations into the modular, decoupled cross-platform architecture adhering to strict engineering constraints.
+This document tracks the phased migration and validation of `bbport` subsystems (forked from [deadinside28/bloodborne_pc](https://github.com/deadinside28/bloodborne_pc)) into a modular, decoupled cross-platform architecture.
+
+> **Status:** Architecture ported & compiling; active Windows Bring-Up and runtime verification in progress. See [WINDOWS_BRINGUP.md](WINDOWS_BRINGUP.md) for the active checklist.
 
 ---
 

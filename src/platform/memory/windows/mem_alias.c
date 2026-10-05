@@ -4,12 +4,8 @@
  */
 #ifdef _WIN32
 #include "platform/memory.h"
+#include "mem_internal.h"
 #include <windows.h>
-
-struct BbDirectPool {
-    HANDLE section_handle;
-    size_t pool_size;
-};
 
 int bb_platform_direct_map(BbDirectPool* pool, void* vaddr,
                            uint64_t phys_offset, size_t size, int prot) {

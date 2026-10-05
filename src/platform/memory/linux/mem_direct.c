@@ -5,16 +5,11 @@
 #ifndef _WIN32
 #define _GNU_SOURCE
 #include "platform/memory.h"
+#include "mem_internal.h"
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
-
-struct BbDirectPool {
-    int fd;
-    void* backing_base;
-    size_t pool_size;
-};
 
 BbDirectPool* bb_platform_direct_create(size_t size) {
     BbDirectPool* pool = (BbDirectPool*)calloc(1, sizeof(BbDirectPool));

@@ -11,7 +11,7 @@ size_t g_threads_created, g_threads_joined, g_threads_exited;
 static void ensure_lock(void) {
     if (!thread_lock) {
         BbMutex *m = bb_platform_mutex_create(BB_MUTEX_TYPE_NORMAL);
-        if (!__sync_bool_compare_and_swap(&thread_lock, NULL, m)) bb_platform_mutex_destroy(m);
+        if (!bb_atomic_cas_ptr(&thread_lock, NULL, m)) bb_platform_mutex_destroy(m);
     }
 }
 void r_thread_lock(void) { ensure_lock(); bb_platform_mutex_lock(thread_lock); }
