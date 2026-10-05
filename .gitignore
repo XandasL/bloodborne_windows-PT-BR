@@ -23,3 +23,7 @@ perf.data
 /bloodborne_upscalers_*.md
 mods.json
 patches.json
+build/
+.vscode/
+*.o
+*.obj
