@@ -6,23 +6,23 @@
 #define LOADER_TYPES_H
 
 #if __has_include("../runtime.h")
-#include "../runtime.h"
+#include "../runtime.h" // IWYU pragma: export
 #else
-#include "runtime.h"
+#include "runtime.h" // IWYU pragma: export
 #endif
 #if __has_include("../../gpu/bbgpu.h")
-#include "../../gpu/bbgpu.h"
+#include "../../gpu/bbgpu.h" // IWYU pragma: export
 #elif __has_include("gpu/bbgpu.h")
-#include "gpu/bbgpu.h"
+#include "gpu/bbgpu.h" // IWYU pragma: export
 #endif
 #if __has_include("../include/platform/bb_common.h")
-#include "../include/platform/bb_common.h"
-#include "../include/platform/memory.h"
-#include "../include/platform/faults.h"
+#include "../include/platform/bb_common.h" // IWYU pragma: export
+#include "../include/platform/memory.h" // IWYU pragma: export
+#include "../include/platform/faults.h" // IWYU pragma: export
 #else
-#include "platform/bb_common.h"
-#include "platform/memory.h"
-#include "platform/faults.h"
+#include "platform/bb_common.h" // IWYU pragma: export
+#include "platform/memory.h" // IWYU pragma: export
+#include "platform/faults.h" // IWYU pragma: export
 #endif
 #include <stdio.h>
 #include <stdlib.h>

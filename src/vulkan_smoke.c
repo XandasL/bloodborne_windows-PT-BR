@@ -1,8 +1,8 @@
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #if __has_include(<vulkan/vulkan.h>)
+#include <stdlib.h>
 #include <vulkan/vulkan.h>
 #define CHECK(call) do { VkResult r = (call); if (r != VK_SUCCESS) { \
     fprintf(stderr, "Vulkan: %s returned %d\n", #call, r); exit(1); } } while (0)
