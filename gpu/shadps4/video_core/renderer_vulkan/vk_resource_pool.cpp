@@ -157,9 +157,7 @@ vk::DescriptorSet DescriptorHeap::Commit(vk::DescriptorSetLayout set_layout) {
         curr_pool = pool;
         pending_pools.pop_front();
 
-        const auto reset_result = device.resetDescriptorPool(curr_pool);
-        ASSERT_MSG(reset_result == vk::Result::eSuccess,
-                   "Unexpected error resetting descriptor pool: {}", vk::to_string(reset_result));
+        device.resetDescriptorPool(curr_pool);
     } else {
         CreateDescriptorPool();
     }

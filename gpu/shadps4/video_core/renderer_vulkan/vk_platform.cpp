@@ -34,11 +34,11 @@ static const char* const VALIDATION_LAYER_NAME = "VK_LAYER_KHRONOS_validation";
 static const char* const CRASH_DIAGNOSTIC_LAYER_NAME = "VK_LAYER_LUNARG_crash_diagnostic";
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugUtilsCallback(
-    vk::DebugUtilsMessageSeverityFlagBitsEXT severity, vk::DebugUtilsMessageTypeFlagsEXT type,
-    const vk::DebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data) {
+    VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type,
+    const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data) {
 
     spdlog::level level{};
-    switch (severity) {
+    switch (static_cast<vk::DebugUtilsMessageSeverityFlagBitsEXT>(severity)) {
     case vk::DebugUtilsMessageSeverityFlagBitsEXT::eError:
         level = spdlog::level::err;
         break;
@@ -275,7 +275,7 @@ vk::UniqueInstance CreateInstance(Frontend::WindowSystemType window_type, bool e
     setenv("VK_DRIVER_FILES", icd_path.c_str(), true);
 #endif
 
-    static vk::detail::DynamicLoader dl;
+    static vk::DynamicLoader dl;
     VULKAN_HPP_DEFAULT_DISPATCHER.init(
         dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr"));
 
