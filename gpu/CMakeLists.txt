@@ -53,6 +53,12 @@ endif()
 include(FetchContent)
 
 find_package(Vulkan REQUIRED)
+FetchContent_Declare(
+    VulkanHeaders
+    GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
+    GIT_TAG v1.3.296
+)
+FetchContent_MakeAvailable(VulkanHeaders)
 
 # Boost headers discovery and fallback
 find_package(Boost QUIET)
@@ -174,8 +180,9 @@ else()
             elseif (TARGET xxhash)
                 add_library(PkgConfig::XXHASH ALIAS xxhash)
             else()
-                add_library(PkgConfig::XXHASH STATIC ${xxhash_SOURCE_DIR}/xxhash.c)
-                target_include_directories(PkgConfig::XXHASH PUBLIC ${xxhash_SOURCE_DIR})
+                add_library(xxhash_static STATIC ${xxhash_SOURCE_DIR}/xxhash.c)
+                target_include_directories(xxhash_static PUBLIC ${xxhash_SOURCE_DIR})
+                add_library(PkgConfig::XXHASH ALIAS xxhash_static)
             endif()
         endif()
     endif()
