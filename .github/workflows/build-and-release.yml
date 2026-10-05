@@ -47,13 +47,12 @@ jobs:
       - name: Install Boost Headers
         shell: pwsh
         run: |
-          $boostDir = "C:\boost"
+          $boostDir = "C:\boost_1_84_0"
           if (-not (Test-Path "$boostDir\boost\version.hpp")) {
-            Write-Host "Downloading Boost 1.84.0 headers..."
-            $boostArchive = "$env:RUNNER_TEMP\boost.tar.gz"
-            Invoke-WebRequest -Uri "https://github.com/boostorg/boost/releases/download/boost-1.84.0/boost-1.84.0.tar.gz" -OutFile $boostArchive
-            New-Item -ItemType Directory -Path $boostDir -Force | Out-Null
-            tar -xzf $boostArchive --strip-components=1 -C $boostDir
+            Write-Host "Downloading Boost 1.84.0 headers (7z archive)..."
+            $boostArchive = "$env:RUNNER_TEMP\boost.7z"
+            Invoke-WebRequest -Uri "https://archives.boost.io/release/1.84.0/source/boost_1_84_0.7z" -OutFile $boostArchive
+            7z x $boostArchive -o"C:\" -y | Out-Null
           }
           echo "BOOST_ROOT=$boostDir" >> $env:GITHUB_ENV
           echo "BOOST_INCLUDEDIR=$boostDir" >> $env:GITHUB_ENV

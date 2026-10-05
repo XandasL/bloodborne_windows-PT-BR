@@ -46,6 +46,11 @@ endif()
 if (POLICY CMP0167)
     cmake_policy(SET CMP0167 OLD)
 endif()
+if (POLICY CMP0144)
+    cmake_policy(SET CMP0144 NEW)
+endif()
+
+include(FetchContent)
 
 find_package(Vulkan REQUIRED)
 
