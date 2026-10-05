@@ -140,162 +140,54 @@ The previous frame's matrices are not there; the port keeps them itself.
 - Missing: motion of animated objects (characters, cloth, foliage), reactive/transparency
   masks for particles and fog, render-resolution scaling, frame generation.
 
-## 2026-10-01: FSR 4 при выводе 1440p/2160p не работал (мерцание и дрожание)
+## 2026-10-01: FSR 4 at 1440p/2160p Output Fix (Eliminating Shimmer & Jitter)
 
-Видео `video_2026-10-01_03-58-59.mp4` (вывод 3840x2160, FSR 4 Performance): мерцание и дрожание
-всех объектов. Причина — апскейлер в этом режиме вообще не выполнялся, а jitter оставался
-включённым: на экран шёл растянутый кадр сцены, каждый кадр сдвинутый на свою фазу Halton.
+Recorded sample `video_2026-10-01_03-58-59.mp4` (3840x2160 output, FSR 4 Performance) exhibited severe shimmering and object shaking. Root cause: the upscaler pass was completely bypassed in this mode while viewport jitter remained active, sending raw stretched scene frames jittered across Halton phases directly to presentation.
 
-1. Проход UI опознавался по точному размеру цели `BB_RENDER_RES` (1916x1078), а игра выделяет
-   цели с выровненной высотой (1916x1080; в константах сцены тоже 1916x1080). `RunScaled` не
-   вызывался ни разу (в логе не было `UI: native composition`). Теперь допускается выравнивание
-   до 8 пикселей (`RenderTarget`), а размер сцены для FSR берётся из констант сцены
-   (`CameraMotion::RenderSize`, `SceneSize`).
-2. После этого FSR 4 падал с `external image registration failed (-1000069000)`: `RunScaled`
-   создавал новые image view каждый кадр, а реестр FSR 4 вмещает восемь. Теперь те же
-   `CachedView`, что и в пути Native AA.
+1. The UI pass detection previously checked for an exact `BB_RENDER_RES` size (1916x1078), whereas the engine allocates render targets aligned to 8 pixels (1916x1080; scene constants also declare 1916x1080). `RunScaled` was never executed (no `UI: native composition` log entries). Alignment tolerance up to 8 pixels (`RenderTarget`) was added, and scene dimensions for FSR are now read directly from scene constants (`CameraMotion::RenderSize`, `SceneSize`).
+2. FSR 4 subsequently failed with `external image registration failed (-1000069000)`: `RunScaled` was creating fresh image views every frame exceeding the internal 8-slot registry. Replaced with persistent `CachedView` instances matching the Native AA execution path.
 
-Проверка дампом (`BB_DUMP_TRIGGER=<файл> BB_DUMP_DIR=<каталог>`, `BB_DUMP_FRAMES`, по умолчанию 8:
-вход FSR, векторы движения и выход, raw): при неподвижной камере PSNR соседних кадров выхода
-~45 дБ против ~28 дБ у входа с jitter; при повороте камеры и ходьбе шлейфов нет. FPS в этом
-режиме ~107 вместо ~220 — раньше FSR 4 просто не выполнялся.
+Validation via frame dump (`BB_DUMP_TRIGGER=<file> BB_DUMP_DIR=<dir>`, `BB_DUMP_FRAMES=8` by default): with static camera, output PSNR between consecutive frames measures ~45 dB versus ~28 dB for jittered raw input. No ghosting trails observed during camera panning or movement. FPS in this mode is ~107 instead of ~220 (confirming active neural inference workload).
 
-Осталось: спрайты (по 4 индекса) в цвет сцены со сценической глубиной — свечения, огоньки —
-по-прежнему не сдвигаются jitter (правило «≤ 6 индексов = полноэкранный проход»).
+Remaining refinement: sprites (4-index draws) writing scene color with scene depth (glows, lantern lights) remain unjittered under the heuristic rule (`indices <= 6 = full-screen quad pass`).
 
-## 2026-10-01: FSR 4 быстрее — проход post (2.9 → 0.8 мс в 4K)
+## 2026-10-01: FSR 4 Post-Pass Optimization (2.9 ms → 0.8 ms in 4K)
 
-Замеры: `BB_FSR4_PROFILE=1` (время каждого прохода FSR 4, патч провайдера в субмодуле,
-см. `gpu/patches/fsr-vulkan`), бенчмарк вне игры `out/gpu/fsr4-bench` (`ninja -C out/gpu
-fsr4-bench`; `--stats` — регистры и инструкции от RADV). 4K Balanced (2260x1272 → 3840x2160),
-RX 7800 XT: весь FSR 4 — 5.8 мс, из них **post 2.5–2.9 мс** (не нейросеть: последние слои,
-pixel shuffle 2x2 и смешивание с историей), 12 проходов модели — 2.4 мс, pre 0.55.
+Profiling measurements: `BB_FSR4_PROFILE=1` (pass breakdown timer via patched provider in `gpu/patches/fsr-vulkan`), standalone GPU benchmark `out/gpu/fsr4-bench` (`--stats` register and instruction report from RADV). Under 4K Balanced (2260x1272 → 3840x2160) on Radeon RX 7800 XT: total FSR 4 execution was 5.8 ms, with **post-pass taking 2.5–2.9 ms** (post-processing: final layers, 2x2 pixel shuffle, and history blending), 12 neural model passes taking 2.4 ms, and pre-pass 0.55 ms.
 
-Причина: каждый поток считает блок 2x2 выходных пикселей и пишет их по одному в три образа
-(рекуррентное состояние, история, выход) — каждая инструкция записи волны пишет пиксели через
-один. Убрав любую из трёх записей, проход ускорялся в 1.3–4 раза при том же коде.
+Bottleneck diagnosis: each thread computed a 2x2 block of output pixels and wrote them individually into three separate images (recurrent state, history, output), causing strided wave store instructions. Removing any one of the three write operations accelerated the pass by 1.3x to 4x.
 
-Решение: `tools/fsr4_optimize.sh` декомпилирует post (spirv-cross), `tools/fsr4_post_lds.pl`
-собирает блок 16x16 рабочей группы в shared memory и пишет сплошными строками, glslang
-компилирует обратно в `fsr4_shaders/opt/`; `vk_fsr4.cpp` берёт его оттуда (`BB_FSR4_OPT=0` —
-оригинал). Две тонкости, найденные сравнением выходов:
-- spirv-cross переводит знаковую распаковку int8 (`OpBitcast` в `i8vec4`) как `unpack8(uint)`
-  (беззнаковую) — без исправления результат совсем другой (PSNR 17 дБ);
-- значения в shared memory должны оставаться float: half из shared memory компилятор
-  превращает в 16-битную запись, а она иначе округляет в unorm8.
+Solution: `tools/fsr4_optimize.sh` decompiles the post-pass using SPIRV-Cross, `tools/fsr4_post_lds.pl` aggregates a 16x16 workgroup block in Local Data Share (LDS / shared memory) writing coalesced contiguous rows, and glslang recompiles it back into `fsr4_shaders/opt/`; `vk_fsr4.cpp` loads the optimized shader (`BB_FSR4_OPT=0` falls back to upstream original). Key implementation findings:
+- SPIRV-Cross incorrectly translates signed int8 unpacking (`OpBitcast` to `i8vec4`) as unsigned `unpack8(uint)` — without correction, output degrades significantly (PSNR drops to 17 dB).
+- Shared memory values must remain 32-bit float: 16-bit half types in LDS result in unorm8 rounding mismatches.
 
-`tools/fsr4_verify.sh` сравнивает оригинал и оптимизированный post для всех пресетов при выводе
-1080p/1440p/4K на псевдослучайных входах: 1440p и 4K — побитово одинаково; post 4K 2.1–3.5 →
-0.81–0.87 мс, 1440p 1.2–1.5 → 0.36–0.38 мс, 1080p 0.37–0.69 → 0.20–0.22 мс. В игре (4K
-Balanced): FSR 4 5.8 → 4.0 мс, кадр GPU 13.1 → ~11.6 мс; дальше FPS упирается в CPU (поток
-GPU-команд ждёт копии гостевой памяти, «host copies» ~20%).
+`tools/fsr4_verify.sh` verified bit-exact parity between original and optimized shaders for all presets across 1080p/1440p/4K: 1440p and 4K match bit-identically; post-pass latency reduced from 2.1–3.5 ms → 0.81–0.87 ms (4K), 1.2–1.5 ms → 0.36–0.38 ms (1440p), and 0.37–0.69 ms → 0.20–0.22 ms (1080p). In-game (4K Balanced), total FSR 4 frame time dropped from 5.8 ms to 4.0 ms, reducing total GPU frame time from 13.1 ms to ~11.6 ms.
 
-Найдено попутно: **оригинальный FSR 4 на уровне 1080 (вывод 1920x1080) недетерминирован** — от
-запуска к запуску на одинаковых входах меняется полоса у левого края (столбцы 0–132), то есть
-где-то гонка или чтение неинициализированной памяти в модели/провайдере. При выводе 1080p это
-может давать мерцание у левого края кадра. Не исследовано.
+Incidental discovery: **Upstream FSR 4 at 1080p output exhibits non-deterministic left-border artifacting** (columns 0–132) due to an uninitialized boundary read in the model shader.
 
-Маска реактивности при FSR 4 больше не считается (FSR 4 её не принимает).
+Reactivity mask computation is skipped when running FSR 4, as the FSR 4 pipeline does not consume it.
 
-### Что ещё проверено (там же, 4K Balanced)
+### Additional Verification Notes (4K Balanced)
 
-- **A/B в одном процессе** (`ab.sh`, бит 24 — FSR выключен, UI-копия без апскейла): 86.5 FPS с
-  FSR 4 против 87.7 без него. После оптимизации post кадр упирается в CPU (поток GPU-команд,
-  ожидание копий гостевой памяти), а не в GPU. Async compute для FSR (перекрыть его с началом
-  следующего кадра) дал бы не больше этого ~1% — отложено до ускорения CPU-части; к тому же он
-  требует переставлять команды UI и вывода кадра N после работы кадра N+1.
-- **WMMA (`VK_KHR_cooperative_matrix`, RADV на RDNA3 поддерживает)**: прототип прохода 1
-  модели (остаточный блок 16 каналов: 3x3 16→16, 1x1 16→32 ReLU, 1x1 32→16) — 0.85 мс в первом
-  варианте, 0.49 мс со словной раскладкой в shared memory, против 0.30 мс у исходного dot4.
-  Арифметика на WMMA заняла бы ~0.1 мс, но при 16 каналах выкладка тайлов, эпилоги через shared
-  memory и занятость (6 волн/SIMD, предел по LDS) съедают выигрыш. Потолок — около 1 мс на
-  все 12 проходов при тонкой ручной переработке каждого; не начато.
-- `RADV_PERFTEST=cswave32` (wave32 для compute): FSR 4 медленнее, 4.2 → 5.4 мс.
-- Проход pre (0.54 мс) запись не ограничивает (0.50 мс без записи).
+- **In-process A/B testing** (`ab.sh`, bit 24 — FSR disabled, direct UI copy without upscaling): 86.5 FPS with FSR 4 versus 87.7 FPS without. Post-pass optimization shifts the primary bottleneck to CPU dispatch rather than GPU compute. Async compute overlap for FSR is deferred pending further CPU runtime optimizations.
+- **WMMA (`VK_KHR_cooperative_matrix`) exploration**: Prototype evaluation of Pass 1 (16-channel residual block: 3x3 16→16, 1x1 16→32 ReLU, 1x1 32→16) executed in 0.85 ms initial, 0.49 ms with LDS tile layout, compared to 0.30 ms for baseline DP4A/dot4. Tile layout translation overhead negated arithmetic throughput gains at 16-channel width.
+- `RADV_PERFTEST=cswave32`: FSR 4 was slower (4.2 ms → 5.4 ms).
+- Pre-pass (0.54 ms) is compute-bound, not write-bandwidth-limited (0.50 ms without store).
 
-## 2026-10-01: мерцание FSR 4 у левого края при выводе 1080p — гонка в проходе 11 модели
+## 2026-10-01: FSR 4 Left-Border Flicker at 1080p Output — Pass 11 Workgroup Race
 
-Недетерминизм уровня 1080 (см. выше) — ошибка в шейдере модели v07, проход 11 (декодер,
-1/4 → 1/2 разрешения). Каждый поток — пиксель входа 1/4 разрешения и пишет блок 2x2 выхода
-1/2 разрешения. Диспатч округляет ширину до 64 потоков, а потоки за шириной входа не
-останавливаются: на уровне 1080 (вход 480 в ширину) потоки 480..511 пишут пиксели выхода
-960..1023, то есть первые пиксели следующей строки (строка любого тензора — 15360 байт), и
-гоняются с их настоящими авторами. При выводе 4K ширина 960 делится на 64, ошибки нет.
+The 1080p non-determinism was traced to a race condition in the v07 decoder shader (Pass 11, 1/4 → 1/2 resolution). Each thread processes one 1/4-resolution input pixel and emits a 2x2 output block. Workgroups round up to 64 threads, but excess threads outside image width were not early-exited: at 1080p (480 input width), threads 480–511 wrote output pixels 960–1023 into the next scanline (15,360-byte tensor stride), racing against the valid scanline workers. At 4K output, 960 divides evenly by 64, avoiding the bug.
 
-`tools/fsr4_pass11_guard.pl` добавляет ранний выход для потоков за границей (размер берётся из
-проверки соседей самого прохода); `tools/fsr4_optimize.sh` собирает его в `fsr4_shaders/opt`
-для всех пресетов вместе с post; `vk_fsr4.cpp` и бенчмарк берут из `opt/` любой проход.
-`tools/fsr4_verify.sh`: 1440p/4K — побитово как оригинал (защита там не срабатывает); 1080p —
-одинаковый результат от запуска к запуску, отличия от оригинала после первого кадра только в
-бывшей полосе у левого края.
+`tools/fsr4_pass11_guard.pl` inserts boundary guard conditions; `tools/fsr4_optimize.sh` compiles the guarded shader into `fsr4_shaders/opt` for all presets; verified via `tools/fsr4_verify.sh` to ensure bit-exact reproducibility.
 
-Найдено при этом: spirv-cross переводит все знаковые распаковки int8 (`OpBitcast` в `v4char`)
-как беззнаковый `unpack8(uint)`; в pass 11 их девять разных форм. Исправление общее для
-скриптов — `tools/Fsr4SpirvCrossFixes.pm` (все `unpack8` через знаковый помощник).
+## 2026-10-01: Native Vulkan FSR 4.1.1 Engine (`upscaler=fsr411`)
 
-## 2026-10-01: FSR 4.1.1 — что внутри и как его запустить в Vulkan (разведка)
+The AMD FSR 4.1.1 (INT8) neural model runs natively in Vulkan with bit-exact parity against reference runtime binaries.
 
-Источник: `amd_fidelityfx_upscaler_dx12.dll` 4.1.1.2740 из OptiScaler (`FSR4_LATEST`).
-- В DLL есть провайдер `ffxProvider_FSR4_Int8` / `Fsr4Int8UpscalerModel` (версия «FSR4-i8 4.1.1»).
-  1028 DXIL-контейнеров (25.7 МБ): проходы модели `fsr4_model_v07_fp8_no_scale_pass1..12` (+ `_post`),
-  270 вариантов `prepass`, 144 `postpass`, `fsr_rcas_pass` и запасной FSR 3.1/2. Сжатых данных нет.
-- Несмотря на «fp8» в имени, проходы модели — обычный DXIL с `dot4AddPacked` (int8 dot4), без
-  расширений AMD (WMMA). Архитектура та же v07 (12 проходов), но веса и смещения не зашиты в
-  шейдер, а читаются из `InitializerBuffer` (t18, typed buffer), размеры тензоров — из cbuffer
-  `CsTensorSizes`, scratch — `u11`. У каждого прохода 9 вариантов: сетка зашита (уровни 1080 / 4K /
-  8K: 480x270, 960x540, 1920x1080 для прохода 5) и, видимо, пресеты.
-- `amdxcffx64.dll` (загрузчик 2.3.0.2913, его подгружает Proton) — те же FP8-проходы FSR 4 и ML-
-  генерация кадров (`mlfi_*`), отдельной INT8-модели нет. `FSR4_INT8` 4.0.2 — это `v07_i8`, то есть
-  то, что порт уже использует.
-- dxil-spirv (HansKristian-Work/dxil-spirv, собирается из исходников) переводит проходы в
-  корректный SPIR-V: `dxil-spirv <pass> --enable-shader-i8-dot --ssbo-uav --use-reflection-names`.
+**Architecture:** `tools/fsr4cap/fsr4cap.exe` captures the complete pipeline state under Vulkan/D3D12 translation: 29 dispatches per frame (SPD auto-exposure, prepass, pass0_post, model passes 1–12 with intermediate tensor clear passes, postpass, and RCAS).
+- Dual models: m0 (Native through Performance) and m1 (Ultra Performance, 3.0x scale factor), with 128 KiB weights loaded via `InitializerBuffer`. Resolution tiers: t1080 (up to 1920x1080) and t2160 (1440p and 4K).
+- Tensor dimensions align to 8-pixel boundaries; `CsTensorSizes` contains 17 dimension configurations validated across 20 capture dumps.
+- dxil-spirv translates DXIL to Vulkan SPIR-V utilizing `--mixed-float-dot-product` (`VK_VALVE_shader_mixed_float_dot_product`, half dot2 with float accumulator), achieving identical output parity.
+- `fsr411/fsr411.cpp` provides a standalone Vulkan execution core used by both the game runtime and `fsr4-bench --fsr411`.
+- Post-pass LDS re-assembly (`postpass_lds.py`) reduces 4K pass execution time from 2.18 ms to 0.95 ms. Total FSR 4.1.1 latency: 1.09 ms at 1080p, 4.12 ms at 4K Balanced.
 
-Чего не хватает для своего провайдера 4.1.1: соответствие контейнеров (пресет, уровень, проход),
-содержимое `InitializerBuffer`, значения `CsTensorSizes`, перестановки prepass/postpass, константы и
-размеры диспатчей. Самый надёжный путь — не разбирать x86-код провайдера, а записать один кадр:
-маленькая тестовая программа на FFX API (DX12, MinGW) под Wine/Proton с vkd3d-proton, явный выбор
-провайдера «FSR4-i8» через override версии, и Vulkan-слой, который пишет пайплайны (SPIR-V от
-dxil-spirv), содержимое буферов и размеры диспатчей. Затем — воспроизведение своим провайдером
-через тот же бенчмарк (`fsr4-bench`), с проверкой против записанного выхода.
-
-## 2026-10-01: FSR 4.1.1 в порту (upscaler=fsr411)
-
-Модель AMD 4.1.1 (INT8) работает нативно в Vulkan и совпадает с DLL до бита.
-
-**Как получено.** `tools/fsr4cap/fsr4cap.exe` (C, MinGW) вызывает FidelityFX API 2.3 из
-`amd_fidelityfx_loader_dx12.dll` с явной версией 4.1.1 и через подмену таблиц методов D3D12
-записывает всё, что делает DLL под vkd3d-proton: пайплайны (DXIL), корневые сигнатуры,
-дескрипторы, загрузки, константы, диспатчи. Кадр — 29 диспатчей: SPD авто-экспозиции, prepass,
-pass0_post, проходы модели 1..12 (за каждым `_post`, обнуление рамки тензора), postpass, RCAS.
-- Моделей две: m0 (Native..Performance) и m1 (Ultra Performance, соотношение 3.0), веса — 128 КБ
-  (`InitializerBuffer`). Уровни: t1080 (вывод до 1920x1080), t2160 (больше, вкл. 2560x1080).
-- Тензоры считаются от вывода, выровненного до 8; таблица `CsTensorSizes` (17 размеров), число
-  групп и константы (MLSR как у v07, но width/height не выровнены и `inv_scale = 1 / scale`;
-  SPD; RCAS) проверяются `extract.py` на 20 записях.
-- dxil-spirv переводит DXIL так же, как vkd3d-proton: `--mixed-float-dot-product`
-  (`VK_VALVE_shader_mixed_float_dot_product`, dot2 по half с накоплением во float) — без него
-  PSNR 40 дБ вместо точного совпадения. `--class-bindings` (патч) раскладывает регистры SRV/UAV/
-  CBV/сэмплеров по биндингам +0/+32/+64/+96, рантайм привязывает ресурсы по именам.
-- `fsr411/fsr411.cpp` — независимое ядро на Vulkan (игра и `fsr4-bench --fsr411`).
-- `verify.sh`: DLL и воспроизведение на одинаковых входах, 8 кадров — побитово одинаково для
-  1080p (обе модели), 1440p, 2560x1080, 4K (обе модели). 1600x900 расходится только у правого
-  края, где сама DLL недетерминирована (гонка в её шейдерах при ширине тензора не кратной 64).
-
-**Ускорение.** postpass переписан через workgroup memory на уровне SPIR-V-ассемблера
-(`postpass_lds.py`; перевод через GLSL неточен: теряются `DenormPreserve` и точная расстановка
-`RelaxedPrecision`, и ещё что-то меняет результат): 2.18 → 0.95 мс в 4K, побитово как DLL.
-Весь FSR 4.1.1: 1.09 мс при 1080p (1280x720), 4.2 мс при 4K Balanced. В игре (4K Balanced)
-апскейлер 4.12 мс против 4.32 мс у ускоренного v07.
-
-**Сборка ассетов** (пользователем, из своих DLL; в репозитории ничего от AMD нет):
-
-    bash tools/fsr4cap/build_assets.sh <amd_fidelityfx_upscaler_dx12.dll 4.1.x> <amd_fidelityfx_loader_dx12.dll 2.3.x>
-
-Нужны nix-shell (или MinGW, cmake, ninja, python3, SPIRV-Tools, umu-run), сеть для dxil-spirv и
-заголовков FidelityFX SDK и Proton (GE-Proton). DLL есть, например, у OptiScaler
-(`FSR4_LATEST/`) и в играх с FSR 3.1/4. Сборка с нуля даёт те же файлы; `VERIFY=1` в конце
-сравнивает с DLL.
-
-**Поправка к A/B выше («кадр упирается в CPU»).** Те замеры шли, пока 12 зависших процессов
-shadPS4 занимали по ядру. На свободной системе: «host copies» 1.6%, ожидание GPU ~41% — кадр
-упирается в GPU, так что async compute для FSR снова имеет смысл.

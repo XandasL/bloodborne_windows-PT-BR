@@ -1,0 +1,88 @@
+// SPDX-FileCopyrightText: Copyright 2026 IFreemz
+// SPDX-License-Identifier: GPL-2.0-or-later
+#version 460
+layout(local_size_x=8, local_size_y=8) in;
+layout(binding=0) uniform sampler2D upscaled;     // DLSS output of the pre-HUD scene
+layout(binding=1) uniform sampler2D final_frame;  // game frame with HUD (render size)
+layout(binding=2) uniform sampler2D scene_frame;  // pre-HUD snapshot (render size)
+layout(binding=3) uniform sampler2DArray lut;     // game display LUT, layer = channel
+layout(binding=4, rgba8) uniform writeonly image2D result;
+layout(binding=5) uniform sampler2D motion;
+layout(binding=6, std430) buffer Coverage {
+    uint changed_pixels; // output pixels the HUD changed, read back to detect menus
+};
+layout(push_constant) uniform Push {
+    uint flags;      // 1: add HUD, 2: apply LUT, 4: motion debug view, 8: menu (game frame only),
+                     // 16: upscaled is linear light (encode it to sRGB)
+    float sharpness; // 0 off .. 1 strongest (robust contrast-adaptive sharpening)
+} pc;
+
+vec3 ToSrgb(vec3 c) {
+    return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
+}
+
+vec3 Upscaled(ivec2 p, ivec2 extent) {
+    vec3 c = clamp(texelFetch(upscaled, clamp(p, ivec2(0), extent - 1), 0).rgb, 0, 1);
+    return (pc.flags & 16u) != 0 ? ToSrgb(c) : c;
+}
+
+shared uint group_changed;
+
+// Writes one output pixel; returns whether the HUD changed it.
+bool Shade(ivec2 pixel, ivec2 extent) {
+    bool changed = false;
+    vec2 uv = (vec2(pixel) + 0.5) / vec2(extent);
+    vec3 color = Upscaled(pixel, extent);
+    if (pc.sharpness > 0) {
+        // RCAS-style: negative lobe limited so the cross neighbourhood never clips.
+        vec3 b = Upscaled(pixel + ivec2(0, -1), extent), d = Upscaled(pixel + ivec2(-1, 0), extent);
+        vec3 f = Upscaled(pixel + ivec2(1, 0), extent), h = Upscaled(pixel + ivec2(0, 1), extent);
+        vec3 lo = min(min(b, d), min(min(f, h), color));
+        vec3 hi = max(max(b, d), max(max(f, h), color));
+        vec3 hit_lo = lo / max(4.0 * hi, 1e-5);
+        vec3 hit_hi = (1.0 - hi) / min(4.0 * lo - 4.0, -1e-5);
+        vec3 lobe3 = max(-hit_lo, hit_hi);
+        float lobe = max(-0.1875, min(max(lobe3.r, max(lobe3.g, lobe3.b)), 0.0)) * pc.sharpness;
+        color = clamp((lobe * (b + d + f + h) + color) / (4.0 * lobe + 1.0), 0, 1);
+    }
+    vec3 final_rgb = texture(final_frame, uv).rgb;
+    vec3 scene_rgb = texture(scene_frame, uv).rgb;
+    changed = any(greaterThan(abs(final_rgb - scene_rgb), vec3(4.0 / 255.0)));
+    if ((pc.flags & 8u) != 0) {
+        // A menu covers the screen: show the game's own frame.
+        color = final_rgb;
+    } else if ((pc.flags & 1u) != 0) {
+        // The HUD as final = t * scene + overlay, with t the strongest uniform dimming of the
+        // scene that keeps the overlay non-negative. Menus darken the whole scene; applying that
+        // dimming to the upscaled image keeps the jittered render-size scene out of the result.
+        // Where the HUD left the scene untouched, t = 1 and the overlay is zero.
+        vec3 ratio = (final_rgb + 1.0 / 512.0) / (scene_rgb + 1.0 / 512.0);
+        float t = clamp(min(ratio.r, min(ratio.g, ratio.b)), 0, 1);
+        color = clamp(t * color + max(final_rgb - t * scene_rgb, 0), 0, 1);
+    }
+    if ((pc.flags & 4u) != 0) {
+        vec2 mv = texture(motion, uv).rg;
+        color = vec3(clamp(abs(mv) / 8, 0, 1), 0);
+    }
+    // The game's display copy maps r, g, b through LUT layers 0, 1, 2. Its shader writes them
+    // swapped because the guest colour-buffer swap reorders them again; this image is plain RGBA.
+    vec3 memory = (pc.flags & 2u) != 0
+        ? vec3(texture(lut, vec3(color.r, 0, 0)).r, texture(lut, vec3(color.g, 0, 1)).r,
+               texture(lut, vec3(color.b, 0, 2)).r)
+        : color;
+    imageStore(result, pixel, vec4(memory, 1));
+    return changed;
+}
+
+void main() {
+    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 extent = imageSize(result);
+    if (gl_LocalInvocationIndex == 0)
+        group_changed = 0;
+    barrier();
+    if (all(lessThan(pixel, extent)) && Shade(pixel, extent))
+        atomicAdd(group_changed, 1u);
+    barrier();
+    if (gl_LocalInvocationIndex == 0 && group_changed != 0)
+        atomicAdd(changed_pixels, group_changed);
+}

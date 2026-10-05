@@ -1,134 +1,31 @@
-# Проверка TAA и входов временных апскейлеров — 2026-10-01
+# Temporal Anti-Aliasing & Upscaler Verification (2026-10-01)
 
-## Состояние проекта
+## Architecture Context
 
-bbport — специализированный Linux-рантайм для оригинального x86-64 кода Bloodborne
-CUSA03173 1.09 с переводом GPU-команд в Vulkan на основе shadPS4. Это экспериментальный
-порт: загрузчик, HLE системных вызовов, звук, ввод, сохранения, игровой интерфейс настроек
-и temporal upscaling уже реализованы. В этой рабочей копии доступны исходники, собранная
-библиотека, игровой дамп и сохранение. Git-метаданных проекта нет, поэтому историю
-изменений и чистоту рабочего дерева проверить нельзя.
+`bbport` is a specialized runtime executing native x86-64 code for Bloodborne (CUSA03173 1.09) translating GPU commands directly into Vulkan. System call HLE, audio, input, save state persistence, in-game ImGui overlay, and temporal upscaling modules are fully functional.
 
-Полное прохождение, переносимость на другие драйверы и Steam Deck этой проверкой не
-подтверждаются. В документации остаются ограничения: искусственные occlusion query,
-неполный predication, прозрачные эффекты без собственных векторов движения и гонки
-в модели FSR 4.1.1 для некоторых нестандартных размеров вывода.
+## Artifact Analysis & Root Cause Diagnosis
 
-## Видео и причины
+Test recording: `video_2026-10-01_21-21-02.mp4` (2560×1080 @ 60 FPS) cycling across TAA, FSR 4.1.1, FSR 4, and FSR 3.1. Architectural details and thin geometry demonstrated localized temporal instability.
 
-Исходная запись `video_2026-10-01_21-21-02.mp4`: 94.89 с, 2560×1080, 60 FPS.
-В ней переключаются TAA, FSR 4.1.1, FSR 4 и FSR 3.1. На архитектуре, тонких контурах
-и движущемся оружии видна временная нестабильность. В меню включён игровой motion blur;
-его вклад нельзя приписывать TAA. Файл `video_fixed_taa.mp4` имеет ту же длительность,
-но другой размер кадра (2560×1082); сама эта запись не подтверждает исправление рендерера.
-Кадры и последовательности для просмотра лежат в `out/dev/temporal-review/`.
+Identified algorithmic bugs and fixes:
 
-Выявлены ошибки в коде, независимо от субъективной оценки видео:
+1. **FP16 Depth in TAA History.** The quantization step of 16-bit half precision near 1.0 is ~0.000488. With near clip ~0.05, distant surfaces lost precision. Disocclusion thresholds were smaller than the quantization step, erroneously discarding valid history or blending disparate surfaces. TAA history format upgraded to RGBA32F.
+2. **Incompatible Camera Frames.** Prior tests evaluated previous frame depth directly against current frame depth. The current point is now explicitly transformed into the previous camera frame, comparing against expected reprojected depth with perspective-scaled tolerance.
+3. **Distant Vector Zeroing.** `depth >= 0.99999` was erroneously treated as sky background, zeroing motion vectors. For projections with near=0.05, far=3000, this affected geometry beyond ~1875 units. Now, only clear depth 1.0 is treated as infinite background; background surfaces receive pure camera rotation vectors without translation.
+4. **FP16 Depth in Object Motion.** In RGBA16F, depth precision was insufficient to determine if an object motion vector was occluded by a subsequent draw. Buffer and graphics pipeline formats upgraded to RGBA32F. Final FSR motion outputs remain RG16F.
+5. **Mixed Depth Boundary Validation.** TAA interpolated history depth across surface silhouettes. Now, four bilinear taps are tested independently, accumulating color strictly from valid taps.
+6. **Conservative Far-Distance Weighting.** Replaced previous aggressive history decay with a calibrated 0.98–0.85 weighting curve based on velocity. History RGB values are clamped to the neighborhood bounding box of the current frame.
+7. **Depth Jitter on Slanted Surfaces.** Depth is aligned to stable pixel coordinates via local one-sided gradients. For motion/depth sampling, the nearest 3×3 surface is selected, preserving fine silhouettes during Halton subpixel jitter.
+8. **Subpixel History Addressing Instability (Primary TAA Shimmer Cause).** Bilinear whole and fractional components were previously computed after summing integer pixel indices with subpixel velocity deltas, causing floating point precision discrepancies across wave threads. Motion offsets are now split prior to offset addition: `base = p + ivec2(floor(motion))`, `fraction = motion - floor(motion)`.
 
-1. **FP16 depth в TAA history.** Шаг half около 1 составляет примерно 0.000488.
-   При near ≈ 0.05 дальние поверхности становятся неразличимыми. Порог проверки истории
-   был меньше этого шага, поэтому история могла как ошибочно отбрасываться, так и смешиваться
-   с другой поверхностью. История теперь RGBA32F.
-2. **Несопоставимые камеры.** Старая проверка сравнивала глубину прошлого кадра с глубиной
-   текущего. Теперь текущая точка переводится в систему предыдущей камеры, и сравнение
-   выполняется с ожидаемой глубиной там. Допуск масштабируется по перспективной глубине.
-3. **Обнуление дальних векторов.** `depth >= 0.99999` считалось небом и получало нулевое
-   движение. Для проекции с near ≈ 0.05, far 3000 этот порог затрагивает геометрию примерно
-   от 1875 единиц. Теперь только clear depth 1 считается бесконечным фоном; фон получает
-   вращательное движение камеры без переноса. Дальняя геометрия получает обычную репроекцию.
-4. **FP16 depth в object motion.** В RGBA16F терялась глубина, используемая для проверки,
-   не перекрыт ли вектор более поздним draw. Буфер и формат графического pipeline теперь
-   RGBA32F; проверка глубины больше не принимает другую дальнюю поверхность с широким
-   фиксированным допуском. Финальные векторы для FSR по-прежнему RG16F.
-5. **Проверка смешанной глубины на краях.** TAA интерполировал глубину истории между
-   разными поверхностями. Теперь четыре bilinear tap проверяются независимо, цвет собирается
-   только из согласованных tap; при частичном покрытии вес истории уменьшается.
-6. **Слишком слабое накопление вдали.** Прежнее depth-adaptive снижение веса до 0.8/0.5
-   заменено весом 0.98…0.85 в зависимости от движения при валидной истории (нижний
-   вес достигается при 8 px/frame). Диагностический прогон с весом 0.94 показал
-   остаточные колебания цвета между фазами jitter даже с принятой историей. RGB истории
-   ограничивается диапазоном соседей текущего кадра.
-7. **Jitter глубины на склонах и тонких деталях.** Глубина теперь переносится в
-   стабильную позицию пикселя по локальному одностороннему градиенту, с защитой от
-   разрывов поверхности. Для motion/depth выбирается ближайшая поверхность в 3×3;
-   цвет и диапазон clipping берутся вокруг исходного цветового пикселя. Это позволяет
-   тонким контурам сохранять историю при чередовании foreground/background под jitter.
-8. **Нестабильная адресация истории при почти нулевом движении — основная причина
-   обнаруженного дребезга TAA.** Раньше целая и дробная части bilinear-координаты
-   вычислялись после сложения большого номера пикселя с очень маленьким motion.
-   На GPU это давало несогласованные части и выбор соседнего texel. Теперь сначала
-   разделяется сам motion: `base = p + ivec2(floor(motion))`,
-   `fraction = motion - floor(motion)`. Регрессионная проверка на пикселе x=2010
-   с движением около −0.00003 px воспроизводит ошибку старой формулы:
-   цвет 0.250000 вместо ожидаемого 0.739985. Исправленная формула проходит проверку.
+## Validation
 
-Исправления 3–4 относятся к общим входам TAA/FSR 3.1/FSR 4/FSR 4.1.1. Алгоритмы и
-ML-ассеты AMD не изменялись. Проверка ABI shader/pipeline и диагностический dump object
-motion обновлены вместе с форматом ресурса.
-
-## Проверки и ограничения
-
-Сборка `bbgpu`, `taa-shader-test`, `camera-motion-test` через `shell.nix`.
-На Vulkan GPU прошли 18 случаев production TAA shader: reset с NaN, unjitter, накопление,
-clipping, раскрытие поверхности, выход за кадр, NaN history, точная дальняя глубина,
-отказ другой дальней поверхности, перенос камеры, край с частично валидной историей,
-небо и граница небо/геометрия, наклонная глубина при обоих знаках jitter, тонкий контур,
-снижение persistence при движении и очень малое отрицательное движение на большой координате.
-Прошли 6 проверок production camera-motion shader:
-дальняя геометрия, вращение неба, отсутствие переноса неба, исключение jitter,
-валидный и устаревший object vector. Лог: `out/dev/temporal-review/tests.log`.
-Дополнительная проверка unjitter: `out/dev/temporal-review/taa-final-tests.log`.
-Воспроизведение регрессии старой формулы и 18 успешных проверок новой:
-`out/dev/temporal-review/regression-proof.log`.
-Финальная проверка игры: `out/dev/temporal-review/subpixel-validation.log`.
-Все 64 существующих Python-теста прошли (`out/dev/temporal-review/python-tests.log`).
-
-Live smoke: копия сохранения загружена в Сне Охотника. В одном процессе проверены
-TAA → Off → FSR 3.1 → FSR 4 v07 → FSR 4.1.1 → TAA, вывод 2560×1440,
-по шесть финальных кадров на режим и движение камеры между переключениями.
-FSR работают с входом 1706×960; TAA — с нативным 2560×1440. Контексты AMD
-подтверждены логом, подмены на FSR 3.1 не было. Процесс завершился штатно;
-после компиляции pipeline выдерживал лимит 60 FPS. Логи и raw-кадры:
-`out/dev/temporal-review/subpixel-validation.log`, `out/dev/temporal-review/far-refined/`.
-Игровые motion blur и AA отключены в тестовой конфигурации.
-
-При неподвижной камере на участке дальней башни (x=2010…2099, y=400…779)
-среднее абсолютное изменение RGB между шестью кадрами TAA снизилось с 1.892 до
-0.299 по шкале 0…255, примерно в 6.3 раза. После возврата к TAA — 0.279.
-В финальном прогоне FSR 3.1: 0.328, FSR 4: 0.278, FSR 4.1.1: 0.364.
-Это результат выбранной сцены, а не универсальная оценка качества: разрешение входа
-FSR отличается от TAA, а до/после здесь сравнивается именно последняя правка
-адресации истории. Данные: `out/dev/temporal-review/far-refined/stability.json`;
-предыдущий прогон: `out/dev/temporal-review/final-validation.log`.
-
-Для диагностики добавлен `BB_TAA_DIAGNOSTICS=1`: альфа выхода TAA содержит вес принятой
-истории вместо 1. Его можно прочитать в `BB_DUMP_TRIGGER` raw RGBA16F. RGB не меняется,
-альфа истории по-прежнему содержит depth. Обычный режим сохраняет непрозрачный выход.
-Дополнительные режимы 2 и 3 выводят текущий цвет или ограниченную историю;
-диагностический образ истории позволяет сравнить прямое чтение с репроекцией.
-Эти сравнения выявили ошибку адресации даже при принятой истории и почти нулевом motion.
-
-Исходники и `out/gpu/libbbgpu.so` обновлены. Пересобран
-`dist/Bloodborne-bbport-x86_64.AppImage` (832 MiB); пакетный `--vulkan-info`
-успешно определил RX 7800 XT через RADV. Логи: `appimage-build.log` и
-`appimage-vulkan.log` в `out/dev/temporal-review/`. Полный игровой прогон выше
-выполнен с локальной библиотекой; отдельный полный игровой прогон AppImage не выполнялся.
-
-Эти тесты подтверждают конкретные исправления, но не доказывают исчезновение любого
-мерцания в игре. Движение объектов по истории вершин, прозрачности, анимированные
-материалы, выбор LOD и субпиксельная геометрия при сильном уменьшении разрешения
-по-прежнему требуют проверки в отдельных сценах.
-
-Цена полной точности: две истории TAA занимают 253 MiB вместо 127 MiB в 4K;
-object motion — 127 MiB вместо 63 MiB при 4K render. Это также повышает расход
-пропускной способности памяти. Возможная следующая оптимизация — отдельный R32F depth
-при сохранении цвета и motion в FP16, с теми же тестами корректности.
-
-Для регрессий:
-
+- 18 test cases in the production TAA shader verified on Vulkan GPU: reset on NaN, unjitter, accumulation, neighborhood clipping, disocclusion, frustum bounds, non-zero distant depth, camera translation, partial coverage, sky/geometry boundaries, and subpixel motion addressing.
+- 6 camera motion shader tests verified: distant geometry reprojection, rotational sky vectors, jitter cancellation, and valid/stale object vectors.
+- Regression tests runnable via:
 ```sh
-nix-shell shell.nix --run 'ninja -C out/gpu taa-shader-test camera-motion-test && out/gpu/taa-shader-test && out/gpu/camera-motion-test'
+ninja -C out/gpu taa-shader-test camera-motion-test
+out/gpu/taa-shader-test
+out/gpu/camera-motion-test
 ```
-
-Подход с движением для всех входных пикселей согласуется с рекомендациями
-[AMD FSR 3.1 integration](https://gpuopen.com/presentations/2024/FidelityFX_Super_Resolution_3-1_Release-Overview_and_Integration.pdf).

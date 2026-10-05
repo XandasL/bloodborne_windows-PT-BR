@@ -154,7 +154,7 @@ def system_language():
     return "en"
 
 
-_language = "ru"
+_language = "en"
 
 
 def set_language(choice):

@@ -102,6 +102,12 @@ jobs:
           if (Test-Path "build/gpu/bbgpu.dll") {
             Copy-Item "build/gpu/bbgpu.dll" "dist/bloodborne-windows-x64/"
           }
+          if (Test-Path "build/dlss_bridge/shadps4_dlss.dll") {
+            Copy-Item "build/dlss_bridge/shadps4_dlss.dll" "dist/bloodborne-windows-x64/"
+          }
+          if (Test-Path "build/fsr4_addon/shadps4_fsr4.dll") {
+            Copy-Item "build/fsr4_addon/shadps4_fsr4.dll" "dist/bloodborne-windows-x64/"
+          }
           
           # Copy runner scripts and tooling
           Copy-Item "run.bat" "dist/bloodborne-windows-x64/"

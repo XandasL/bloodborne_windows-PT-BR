@@ -1,28 +1,25 @@
 # Depth-Adaptive TAA Improvements
 
-**Дата:** 2026-10-01  
-**Статус:** Исторический эксперимент, заменён исправлением temporal reprojection.
+**Date:** 2026-10-01  
+**Status:** Historical experiment, superseded by temporal reprojection overhaul.
 
-Описанные ниже пороги и веса больше не используются. Уменьшение веса истории вдали
-усиливало мерцание; сравнение device depth между разными камерами и хранение глубины
-в FP16 не позволяли корректно отличать дальние поверхности. Актуальный разбор,
-изменения и результаты проверок: [TEMPORAL_REVIEW_2026-10-01.md](TEMPORAL_REVIEW_2026-10-01.md).
+The thresholds and weighting schemes described below are preserved for reference. Reducing history weight at far depth increased shimmering; device depth comparisons across different camera projections and storing depth in FP16 failed to reliably separate distant surfaces. For current implementation and verification results, see [TEMPORAL_REVIEW_2026-10-01.md](TEMPORAL_REVIEW_2026-10-01.md).
 
-## Проблема
+## Problem
 
-Текущая реализация TAA использует фиксированные пороги для:
-1. Определения disocclusion (раскрытие новых поверхностей): `0.0005`
-2. Временного веса накопления: `0.9` → `0.65` в зависимости от движения
+Early TAA implementations used static thresholds for:
+1. Disocclusion detection (revealing newly exposed geometry): `0.0005`
+2. Temporal accumulation weighting: `0.9` → `0.65` depending on motion velocity
 
-Эти параметры не учитывают глубину пикселя, что приводит к проблемам:
-- **Далёкие объекты (depth → 1.0)**: временная нестабильность, мерцание
-- **Близкие объекты (depth → 0.0)**: чрезмерное размытие при быстром движении
+Fixed parameters did not account for non-linear depth distribution:
+- **Distant geometry (depth → 1.0)**: Temporal instability, shimmering
+- **Foreground geometry (depth → 0.0)**: Excessive ghosting / smearing during rapid camera movements
 
-## Решение: Адаптивные пороги по глубине
+## Solution: Depth-Adaptive Thresholds
 
 ### 1. Depth-Adaptive Disocclusion Threshold
 
-**Файл:** `gpu/shadps4/video_core/host_shaders/taa.comp`
+**File:** `gpu/shadps4/video_core/host_shaders/taa.comp`
 
 ```glsl
 float depthThreshold(float depth) {
@@ -31,12 +28,12 @@ float depthThreshold(float depth) {
 }
 ```
 
-**Логика:**
-- Близкие поверхности (depth < 0.7): порог `0.001` — допускает небольшие расхождения
-- Дальние поверхности (depth > 0.95): порог `0.0002` — строже, меньше false positives
-- Плавный переход через `smoothstep(0.7, 0.95, depth)`
+**Logic:**
+- Foreground surfaces (depth < 0.7): `0.001` threshold accommodates minor variance
+- Distant surfaces (depth > 0.95): `0.0002` threshold prevents false positives in compressed depth space
+- Smooth transition via `smoothstep(0.7, 0.95, depth)`
 
-**Применение:**
+**Usage:**
 ```glsl
 float depthDiff = abs(history.a - depth);
 float threshold = depthThreshold(depth);
@@ -57,25 +54,17 @@ float temporalWeight(float depth, float motionLength) {
 }
 ```
 
-**Логика:**
-- **Базовый вес без движения:**
-  - Близко: `0.9` (агрессивное накопление истории)
-  - Далеко: `0.8` (консервативнее, меньше мерцания)
-  
-- **При быстром движении (motionLength > 16px):**
-  - Близко: снижается до `0.65`
-  - Далеко: снижается до `0.5` (ещё консервативнее)
-
-**Применение:**
-```glsl
-float motionLength = length(motion);
-float weight = temporalWeight(depth, motionLength);
-result = mix(current, clipped, weight);
-```
+**Logic:**
+- **Static Base Weight:**
+  - Foreground: `0.9` (aggressive history accumulation)
+  - Distant: `0.8` (conservative, reduced shimmering)
+- **High Motion (motionLength > 16px):**
+  - Foreground: scales down to `0.65`
+  - Distant: scales down to `0.5`
 
 ### 3. Motion Vector Validation (camera_motion.comp)
 
-**Файл:** `gpu/shadps4/video_core/host_shaders/camera_motion.comp`
+**File:** `gpu/shadps4/video_core/host_shaders/camera_motion.comp`
 
 ```glsl
 // Depth-adaptive validation: distant surfaces need tighter depth matching.
@@ -86,16 +75,13 @@ if (object_motion.b > 0.99 && abs(object_motion.a - depth) < depth_threshold &&
 }
 ```
 
-**Что изменено:**
-- Старый порог: фиксированный `0.001`
-- Новый порог: `0.001` → `0.0003` для далёких поверхностей
-- Предотвращает использование object motion vectors от неправильных пикселей
+Prevents incorrect object motion vector application across depth discontinuities.
 
-### 4. Улучшенная визуализация debug режимов
+### 4. Debug Visualization Modes
 
-**Файл:** `gpu/shadps4/video_core/host_shaders/camera_motion.comp`
+**File:** `gpu/shadps4/video_core/host_shaders/camera_motion.comp`
 
-Режимы `BB_DEBUG_MOTION=1` теперь структурированы:
+`BB_DEBUG_MOTION=1` inspection modes:
 ```glsl
 if (mode == 1) {
     // Raw depth visualization
@@ -107,82 +93,9 @@ if (mode == 1) {
 }
 ```
 
-## Ожидаемые улучшения
+## References
 
-### Дальние объекты
-- ✅ Меньше мерцания на далёких стенах и небе
-- ✅ Более стабильная история при небольших движениях камеры
-- ✅ Меньше ложных disocclusion от численных ошибок глубины
-
-### Близкие объекты
-- ✅ Меньше размытия при быстрых движениях (персонаж, оружие)
-- ✅ Более точные object motion vectors
-- ✅ Лучший баланс между накоплением и отзывчивостью
-
-### Адаптивная зона (depth 0.7-0.95)
-- Плавный переход между режимами
-- Предотвращает резкие артефакты на границе
-
-## Тестирование
-
-### Визуальная проверка
-```bash
-# TAA в нативном разрешении
-BB_UPSCALER=taa bash run.sh
-
-# Проверить:
-# 1. Мерцание далёких стен (Hunter's Dream, верхние этажи)
-# 2. Размытие оружия при быстром повороте
-# 3. Стабильность при медленном движении камеры
-# 4. Disocclusion при обходе углов
-```
-
-### Debug режимы
-```bash
-# Визуализация глубины
-BB_DEBUG_MOTION=1 bash run.sh
-# Toggle: (1<<21) = raw depth, (1<<22) = view-space z
-
-# Проверка motion vectors
-# Toggle: (1<<20) = blended motion, (1<<23) = reprojection, (1<<24) = difference
-```
-
-### A/B сравнение
-```bash
-# Создать файл для runtime-переключения
-echo "0" > /tmp/bb_toggle
-
-# В игре переключать биты для сравнения
-# Потребуется временный механизм для старых/новых весов
-```
-
-## Потенциальные риски
-
-1. **Слишком консервативные веса на далёких объектах**
-   - Может увеличить смазывание при быстрых поворотах
-   - Решение: настроить `baseWeight` (0.8 → 0.85?)
-
-2. **Слишком строгий порог глубины для object motion**
-   - Может отбрасывать валидные векторы
-   - Решение: `0.0003` → `0.0005` для depth > 0.95
-
-3. **Smoothstep диапазон 0.7-0.95 может быть неоптимальным**
-   - Bloodborne: near=0.05, far=3000
-   - Большинство геометрии в диапазоне 0.1-0.9
-   - Решение: профилирование распределения глубины в типичных сценах
-
-## Следующие шаги
-
-1. ✅ Реализовать depth-adaptive пороги
-2. ⏳ Собрать и протестировать в игре
-3. ⏳ Собрать статистику распределения глубины
-4. ⏳ Настроить пороги на основе реальных данных
-5. ⏳ Добавить runtime-переключение для A/B тестов
-6. ⏳ Документировать финальные параметры
-
-## Ссылки
-
-- [upscaler.md](upscaler.md) — общая архитектура апскейлера
-- [motion_vectors.md](motion_vectors.md) — векторы движения
+- [upscaler.md](upscaler.md) — Temporal upscaler architecture
+- [motion_vectors.md](motion_vectors.md) — Motion vector generation
 - TAA shader: `gpu/shadps4/video_core/host_shaders/taa.comp`
 - Camera motion: `gpu/shadps4/video_core/host_shaders/camera_motion.comp`

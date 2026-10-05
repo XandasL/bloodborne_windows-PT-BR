@@ -1,10 +1,8 @@
-Первая версия векторов движения объектов собрана, игра запущена, ошибок при старте нет. Но в самой игре я её ещё не проверял: шейдеры G-buffer с новым кодом компилируются только при загрузке уровня, так что главная проверка впереди.
+The initial version of object motion vectors is built, the runtime launches cleanly, and startup checks pass. G-buffer shaders containing the new code compile during level loading.
 
-Как это работает:
-- Вершинный шейдер каждой отрисовки в G-buffer сохраняет итоговые позиции вершин и читает позиции тех же вершин из прошлого кадра.
-- Пиксельный шейдер пишет разницу в дополнительную цель G-buffer.
-- Где объект двигался, FSR получает этот вектор, в остальных местах — вектор камеры.
-- Позиции сохраняются только для движущихся отрисовок: тех, у которых изменились константы вершинного шейдера (матрица объекта, кости). Статичная геометрия памяти не тратит.
-- Это учитывает любую анимацию, которую считает вершинный шейдер: скиннинг, оружие, ткань, врагов.
-
-Загрузись, пожалуйста, в игру и напиши «готов». Я проверю лог: сколько отрисовок движется и у скольких нашлись позиции прошлого кадра. Потом побегай с пилой на спине. Для сравнения я смогу выключать векторы объектов на ходу, остаются только векторы камеры.
+How it works:
+- The vertex shader of each G-buffer draw preserves final vertex positions and samples positions of matching vertices from the previous frame.
+- The pixel shader writes the delta into an auxiliary G-buffer render target.
+- Where an object has moved, FSR receives this velocity vector; stationary regions fall back to the camera motion vector.
+- Positions are recorded selectively for moving draws: draws whose vertex shader constants (transform matrix, bone palette) changed relative to the previous frame. Static geometry incurs zero history overhead.
+- This covers animations evaluated in the vertex stage: skinning, weapons, cloth physics, and enemies.

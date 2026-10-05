@@ -1,106 +1,59 @@
-# Файловые моды
+# File Mods
 
-В лаунчере появилась группа **Моды**: выбор папки, общий переключатель,
-включение каждого мода и стрелки порядка загрузки. Изменения применяются при
-следующем запуске. Нижний включённый мод имеет больший приоритет; при совпадении
-файлов в журнале выводится, какой мод заменил предыдущий.
+The launcher provides a **Mods** section: mod folder selection, master toggle, individual mod toggles, and load order arrows. Changes take effect on the next launch. The lowest enabled mod in the list has the highest priority; in case of file collisions, the log displays which mod replaced earlier files.
 
-По умолчанию используется `bbport/mods/`, а в AppImage —
-`~/.local/share/bbport/mods/`. Распакуйте скачанный мод так:
+By default, `bbport/mods/` is used (on AppImage: `~/.local/share/bbport/mods/`). Extract downloaded mods as follows:
 
 ```text
 mods/
-  Название мода/
+  Mod Name/
     dvdroot_ps4/
       chr/...
       param/...
       menu/...
 ```
 
-Также принимаются:
+The following structures are also accepted:
 
-- `Название мода/app0/dvdroot_ps4/...` и `Название мода/CUSA03173/dvdroot_ps4/...`;
-- лишняя папка-обёртка, как после распаковки архива в папку с его именем:
-  `Название мода/Название мода v1.2/dvdroot_ps4/...` (рядом могут лежать readme/картинки);
-- мод без `dvdroot_ps4`, в котором сразу лежат папки игры: `Название мода/chr/...`,
-  `Название мода/parts/...` (`chr`, `parts`, `map`, `menu`, `msg`, `param`, `sfx`,
-  `sound`, `font` и другие папки `dvdroot_ps4`).
+- `Mod Name/app0/dvdroot_ps4/...` and `Mod Name/CUSA03173/dvdroot_ps4/...`;
+- An extra wrapper directory created by archive extraction: `Mod Name/Mod Name v1.2/dvdroot_ps4/...` (alongside readme files/images);
+- Direct mod directory without `dvdroot_ps4` containing game asset folders: `Mod Name/chr/...`, `Mod Name/parts/...` (`chr`, `parts`, `map`, `menu`, `msg`, `param`, `sfx`, `sound`, `font`, and other `dvdroot_ps4` subdirectories).
 
-Регистр имён в моде не важен: `DVDROOT_PS4/Chr/C0000.chrbnd.dcx` из мода, собранного
-под Windows, заменяет игровой `dvdroot_ps4/chr/c0000.chrbnd.dcx`. Раньше такой файл
-добавлялся рядом под своим именем, и игра его не видела. В журнале запуска видно, сколько
-файлов игры мод заменил и сколько добавил: `Mods: 12 game files replaced, 0 added`.
-Если мод должен заменять файлы, а пишет `0 game files replaced`, проверьте пути внутри мода.
-Архивы ZIP/7z нужно предварительно распаковать. Поддерживаются готовые замены
-файлов `dvdroot_ps4`: текстуры, модели, параметры, интерфейс, звук и шрифты.
-Менеджер не объединяет содержимое двух одинаковых `.dcx`/`.bnd` файлов: последняя
-замена выигрывает целиком.
+Filename casing is case-insensitive: `DVDROOT_PS4/Chr/C0000.chrbnd.dcx` from a Windows mod correctly replaces game `dvdroot_ps4/chr/c0000.chrbnd.dcx`. The launch log indicates how many files were replaced and added: `Mods: 12 game files replaced, 0 added`. If a mod is intended to replace files but the log reports `0 game files replaced`, check directory paths within the mod folder. ZIP/7z archives must be extracted first. Standard `dvdroot_ps4` replacements are supported: textures, models, parameters, UI, audio, and fonts. The mod manager does not merge contents of two colliding `.dcx`/`.bnd` files: the last override wins completely.
 
-Для уже подготовленной папки shadPS4 работает соседний каталог
-`CUSA03173-mods/dvdroot_ps4/...` рядом с `CUSA03173/`. Он подключается автоматически
-перед модами из списка. Общий переключатель выключает и его. Можно также выбрать
-папку, непосредственно содержащую `dvdroot_ps4`, как папку модов; такая папка
-подключается целиком, без списка отдельных модов.
-Соглашение `-mods` проверено по
-[исходникам shadPS4](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/file_sys/fs.cpp).
+For existing shadPS4 installations, the sibling folder `CUSA03173-mods/dvdroot_ps4/...` next to `CUSA03173/` is automatically recognized. It is mounted before mods from the list. The master toggle also disables this folder. Alternatively, a folder directly containing `dvdroot_ps4` can be chosen as the mods folder, mounted whole without a list.
 
-Оригиналы игры не перезаписываются. На время запуска создаётся отдельное
-объединённое дерево ссылок в каталоге данных `out/mod-game-*`; чтение, stat и
-перечисление каталогов видят выбранные замены и остальные оригинальные файлы.
-Игровые `/app0` и `/hostapp` доступны только для чтения. Сохранения остаются
-в прежней папке и доступны для записи. При обычном завершении или остановке
-лаунчером временное дерево удаляется. После SIGKILL/аварийного отключения оно
-может остаться; такие каталоги не используются в следующем запуске.
+Original game files are never overwritten. At runtime, an isolated union mount/symlink overlay tree is created under data directory `out/mod-game-*`. File operations (read, stat, directory listing) see selected mod overrides and remaining original files. Game directories `/app0` and `/hostapp` are mounted read-only. Save games remain in their dedicated save folder and are read-write. On normal termination or launcher exit, temporary overlay trees are cleaned up automatically.
 
-Моды с заменой `eboot.bin`, `sce_module` или `sce_sys`, инжекторы DLL и скриптовые
-плагины этим загрузчиком не поддерживаются. Патчи исполняемого кода остаются
-в существующей системе `patches/` / `BB_PATCHES`. Символьные ссылки внутри мода
-не принимаются. Совместимость конкретного мода с CUSA03173 1.09 определяется
-его автором.
+Mods modifying `eboot.bin`, `sce_module`, or `sce_sys`, DLL injectors, and script hooks are not supported by this file loader. Executable code patches are handled via `patches/` / `BB_PATCHES`. Symbolic links inside mods are not followed.
 
-Для запуска из терминала:
+To launch from terminal:
 
 ```sh
 BB_GAME_DIR=/path/to/CUSA03173 BB_MODS_DIR=/path/to/mods bash run.sh
 BB_GAME_DIR=/path/to/CUSA03173 BB_MODS_ENABLED=0 bash run.sh
 ```
 
-Порядок и отключения сохраняются в каталоге данных `mods.json`:
+Mod load order and disabled status are saved in data directory `mods.json`:
 
 ```json
-{"order": ["Первый", "Второй"], "disabled": ["Первый"]}
+{"order": ["First", "Second"], "disabled": ["First"]}
 ```
 
-Новые папки включаются автоматически и добавляются в конец по алфавиту.
-`BB_MODS_CONFIG` меняет путь профиля. `BB_MOD_TRACE=1` с `BB_MODS_DIR` выводит
-первые чтения реально подключённых файлов для диагностики.
+New folders are automatically enabled and appended alphabetically. `BB_MODS_CONFIG` overrides the profile path. `BB_MOD_TRACE=1` alongside `BB_MODS_DIR` logs initial file reads for debugging.
 
-# Сторонние патчи (XML shadPS4)
+# Third-Party Patches (shadPS4 XML)
 
-Папка `patches/` в каталоге данных (в AppImage — `~/.local/share/bbport/patches/`, в лаунчере
-группа **Сторонние патчи**, там же можно выбрать другую папку). Подходят XML-файлы патчей в
-формате shadPS4/GoldHEN: берутся `Metadata` для `AppVer="01.09"` и `eboot.bin`, файлы с
-`TitleID` других игр пропускаются. Включение по умолчанию — из `isEnabled` файла, выбор в
-лаунчере сохраняется в `patches.json` каталога данных:
+The `patches/` folder in the data directory (AppImage: `~/.local/share/bbport/patches/`, or configured via the launcher **Third-party Patches** section) accepts shadPS4/GoldHEN XML patch files. Patches targeting `AppVer="01.09"` and `eboot.bin` are loaded; patches for other TitleIDs are skipped. Default enable state comes from the `isEnabled` attribute in the file; launcher selections are saved to `patches.json`:
 
 ```json
-{"enabled": ["файл.xml/Имя патча"], "disabled": ["файл.xml/Другой патч"]}
+{"enabled": ["file.xml/Patch Name"], "disabled": ["file.xml/Other Patch"]}
 ```
 
-Поддерживаются строки `bytes`, `bytes16/32/64`, `float32/64`, `utf8`, `utf16`.
-Патч со строками `mask` (поиск по шаблону) или с адресом вне eboot пропускается целиком,
-с сообщением в журнале. Сторонние патчи применяются после встроенных
-(`patches/Bloodborne.xml`): при пересечении побеждает сторонний. Из терминала:
-`BB_PATCHES_DIR=/путь BB_PATCHES_CONFIG=/путь/patches.json bash run.sh`.
+Supported patch types include `bytes`, `bytes16/32/64`, `float32/64`, `utf8`, and `utf16`. Patches containing `mask` lines or addresses outside the eboot image range are skipped with a warning log. Third-party patches are applied after built-in patches (`patches/Bloodborne.xml`): on conflict, third-party patches take precedence. From terminal: `BB_PATCHES_DIR=/path BB_PATCHES_CONFIG=/path/patches.json bash run.sh`.
 
-Патчи, которые заменяют указатели в таблицах (как `60 FPS++` и `90 FPS++`), загрузчик
-переносит на реальный адрес образа. Раньше такие патчи останавливали запуск ошибкой
-`patch overlaps a relocation`.
+Patches relocating pointers in tables (such as `60 FPS++` and `90 FPS++`) are automatically re-based to the actual image load address by the runtime loader.
 
-# Резкость TAA
+# TAA Sharpness
 
-Настройки `sharpen` и `sharpness` теперь работают также для TAA, в лаунчере и
-меню игры. Диапазон — **0…1**; при 0 или выключенном переключателе дополнительного
-прохода нет. RCAS применяется к готовой сцене перед HUD. В историю TAA сохраняется
-цвет до повышения резкости, чтобы она не усиливалась при повторном накоплении.
-Ровные участки сохраняют исходный цвет, включая HDR; дополнительный буфер не нужен.
+The `sharpen` and `sharpness` settings apply to TAA in both the launcher and in-game menu. Range is **0.0 - 1.0**; when set to 0 or disabled, no extra pass is run. AMD FidelityFX RCAS is applied to the resolved scene prior to HUD composition. Pre-sharpened color is stored in the TAA history buffer to prevent recursive over-sharpening over multiple frames. Flat color regions preserve original values including HDR without requiring auxiliary buffers.
