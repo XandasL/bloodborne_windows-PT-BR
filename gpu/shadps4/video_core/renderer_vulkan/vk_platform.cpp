@@ -158,7 +158,9 @@ static auto GetLayerExtensions(std::vector<const char*>&& extensions,
 
 std::vector<const char*> GetInstanceExtensions(Frontend::WindowSystemType window_type,
                                                bool enable_debug_utils) {
-    const auto [properties_result, properties] = vk::enumerateInstanceExtensionProperties();
+    const auto ext_props = vk::enumerateInstanceExtensionProperties();
+    const auto properties_result = ext_props.result;
+    const auto& properties = ext_props.value;
     if (properties_result != vk::Result::eSuccess || properties.empty()) {
         LOG_ERROR(Render_Vulkan, "Failed to query extension properties: {}",
                   vk::to_string(properties_result));
@@ -223,7 +225,9 @@ std::vector<const char*> GetInstanceExtensions(Frontend::WindowSystemType window
 }
 
 std::vector<const char*> GetInstanceLayers(bool enable_validation, bool enable_crash_diagnostic) {
-    const auto [properties_result, properties] = vk::enumerateInstanceLayerProperties();
+    const auto layer_props = vk::enumerateInstanceLayerProperties();
+    const auto properties_result = layer_props.result;
+    const auto& properties = layer_props.value;
     if (properties_result != vk::Result::eSuccess || properties.empty()) {
         LOG_ERROR(Render_Vulkan, "Failed to query layer properties: {}",
                   vk::to_string(properties_result));
