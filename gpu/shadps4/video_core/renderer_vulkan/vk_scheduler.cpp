@@ -6,8 +6,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <unordered_map>
-#include <dlfcn.h>
 #include <functional>
+#ifndef _WIN32
+#include <dlfcn.h>
+#endif
 
 #include "bbport_copy.h"
 #include "video_core/renderer_vulkan/vk_gpu_profiler.h"

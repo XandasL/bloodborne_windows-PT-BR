@@ -349,6 +349,10 @@ private:
         u64 offset;
         u32 size;
         bool is_written;
+
+        BoundBuffer() = default;
+        BoundBuffer(const VideoCore::Buffer* b, u64 o, u32 s, bool w)
+            : buffer(b), offset(o), size(s), is_written(w) {}
     };
     boost::container::static_vector<BoundBuffer, Shader::NUM_BUFFERS> bound_buffers;
 

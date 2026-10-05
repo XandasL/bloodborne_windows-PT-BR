@@ -2126,7 +2126,7 @@ void Rasterizer::BindBuffers(const Shader::Info& stage, const PreparedStage* pre
                 }
                 push_data.AddOffset(binding.buffer, adjust);
                 buffer_infos.push_back(vk::DescriptorBufferInfo{buffer->Handle(), offset_aligned, size + adjust});
-                bound_buffers.emplace_back(buffer, offset, size, desc.is_written);
+                bound_buffers.push_back(BoundBuffer{buffer, offset, static_cast<u32>(size), desc.is_written});
                 if (desc.is_written) {
                     // Raw storage-buffer writes can also make an aliased cached image stale.
                     texture_cache.InvalidateMemoryFromGPU(vsharp.base_address, size);
