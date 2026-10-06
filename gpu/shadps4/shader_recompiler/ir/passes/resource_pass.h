@@ -28,7 +28,11 @@ struct SharpReference {
 
 struct ResourceDiscovery {
     IR::Inst* user{};
-    std::array<SharpReference, 2> sharps;
+    std::array<SharpReference, 2> sharps{};
+
+    ResourceDiscovery() = default;
+    ResourceDiscovery(IR::Inst* u) : user{u}, sharps{} {}
+    ResourceDiscovery(IR::Inst* u, std::array<SharpReference, 2> s) : user{u}, sharps{s} {}
 };
 using ResourceDiscoveryList = boost::container::small_vector<ResourceDiscovery, 32>;
 

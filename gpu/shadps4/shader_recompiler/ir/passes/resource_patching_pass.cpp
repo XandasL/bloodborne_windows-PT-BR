@@ -719,7 +719,7 @@ void PatchImageSampleArgs(IR::Inst& inst, Info& info, const ImageResource& image
     }();
     const IR::F32 bias = inst_info.has_bias ? get_addr_reg(addr_reg++) : IR::F32{};
     const IR::F32 dref = inst_info.is_depth ? get_addr_reg(addr_reg++) : IR::F32{};
-    const auto [derivatives_dx, derivatives_dy] = [&] -> std::pair<IR::Value, IR::Value> {
+    const auto derivatives_pair = [&] -> std::pair<IR::Value, IR::Value> {
         if (!inst_info.has_derivatives) {
             return {};
         }
@@ -747,6 +747,8 @@ void PatchImageSampleArgs(IR::Inst& inst, Info& info, const ImageResource& image
             UNREACHABLE();
         }
     }();
+    const auto& derivatives_dx = derivatives_pair.first;
+    const auto& derivatives_dy = derivatives_pair.second;
 
     const bool is_msaa = view_type == AmdGpu::ImageType::Color2DMsaa ||
                          view_type == AmdGpu::ImageType::Color2DMsaaArray;

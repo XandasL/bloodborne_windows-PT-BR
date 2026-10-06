@@ -243,8 +243,10 @@ struct PhiSccFinder {
 private:
     void StrongConnect(IR::Inst* root) {
         struct Frame {
-            IR::Inst* phi;
-            size_t arg_idx;
+            IR::Inst* phi{};
+            size_t arg_idx{};
+            Frame() = default;
+            Frame(IR::Inst* p, size_t a) : phi{p}, arg_idx{a} {}
         };
         boost::container::small_vector<Frame, 8> dfs;
 

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <algorithm>
 #include "common/logging/classes.h"
 #include "shader_recompiler/info.h"
 #include "shader_recompiler/ir/basic_block.h"
@@ -99,7 +100,8 @@ void LowerWave64BallotPass(IR::Program& program, const RuntimeInfo& runtime_info
     std::vector<IR::Inst*> worklist;
     const auto uniform_blocks = FindUniformBlocks(program);
     for (IR::Block* block : program.blocks) {
-        const bool is_uniform = std::ranges::contains(uniform_blocks, block);
+        const bool is_uniform =
+            std::find(uniform_blocks.begin(), uniform_blocks.end(), block) != uniform_blocks.end();
         const auto push_worklist = [&](IR::Inst& inst) {
             if (is_uniform) {
                 worklist.push_back(&inst);

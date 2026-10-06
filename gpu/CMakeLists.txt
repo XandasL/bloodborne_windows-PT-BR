@@ -315,11 +315,19 @@ else()
     pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavformat libavcodec libavutil libswscale libswresample)
 endif()
 file(GLOB SHIM_SOURCES CONFIGURE_DEPENDS shim/*.cpp shim/*/*.cpp)
-add_library(bbgpu SHARED ${VIDEO_CORE} ${RECOMPILER} ${COMMON} ${SHIM_SOURCES}
-    shadps4/core/libraries/gnmdriver/gnmdriver.cpp
-    shadps4/core/libraries/videoout/driver.cpp shadps4/core/libraries/videoout/video_out.cpp
-    shadps4/core/libraries/kernel/equeue.cpp ${AVPLAYER}
-    ${VIDEODEC})
+if (WIN32)
+    add_library(bbgpu STATIC ${VIDEO_CORE} ${RECOMPILER} ${COMMON} ${SHIM_SOURCES}
+        shadps4/core/libraries/gnmdriver/gnmdriver.cpp
+        shadps4/core/libraries/videoout/driver.cpp shadps4/core/libraries/videoout/video_out.cpp
+        shadps4/core/libraries/kernel/equeue.cpp ${AVPLAYER}
+        ${VIDEODEC})
+else()
+    add_library(bbgpu SHARED ${VIDEO_CORE} ${RECOMPILER} ${COMMON} ${SHIM_SOURCES}
+        shadps4/core/libraries/gnmdriver/gnmdriver.cpp
+        shadps4/core/libraries/videoout/driver.cpp shadps4/core/libraries/videoout/video_out.cpp
+        shadps4/core/libraries/kernel/equeue.cpp ${AVPLAYER}
+        ${VIDEODEC})
+endif()
 add_dependencies(bbgpu host_shaders)
 # In-game settings menu: Dear ImGui (third_party/imgui, MIT) with its Vulkan backend, and an
 # embedded Cyrillic font (third_party/fonts).
