@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <array>
-#include <source_location>
 #include <boost/container/small_vector.hpp>
 #include "common/assert.h"
 #include "shader_recompiler/ir/debug_print.h"
@@ -13,9 +12,8 @@
 namespace Shader::IR {
 namespace {
 [[noreturn]] void ThrowInvalidType(Type type,
-                                   std::source_location loc = std::source_location::current()) {
-    const std::string functionName = loc.function_name();
-    const int lineNumber = loc.line();
+                                   const char* functionName = __builtin_FUNCTION(),
+                                   int lineNumber = __builtin_LINE()) {
     UNREACHABLE_MSG("Invalid type = {}, functionName = {}, line = {}", u32(type), functionName,
                     lineNumber);
 }

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <span>
 #include "shader_recompiler/frontend/translate/translate.h"
 
 namespace Shader::Gcn {
@@ -318,9 +319,9 @@ void Translator::BUFFER_STORE(u32 num_dwords, bool is_inst_typed, bool is_buffer
         for (u32 i = num_dwords; i < 4; i++) {
             comps.push_back(ir.Imm32(0.f));
         }
-        ir.StoreBufferFormat(handle, address, ir.CompositeConstruct(comps), buffer_info);
+        ir.StoreBufferFormat(handle, address, ir.CompositeConstruct(std::span{comps.data(), comps.size()}), buffer_info);
     } else {
-        IR::Value value = num_dwords == 1 ? comps[0] : ir.CompositeConstruct(comps);
+        IR::Value value = num_dwords == 1 ? comps[0] : ir.CompositeConstruct(std::span{comps.data(), comps.size()});
         if (scalar_width != 32) {
             value = ir.UConvert(scalar_width, IR::U32{value});
         }
@@ -370,7 +371,7 @@ void Translator::BUFFER_ATOMIC(AtomicOp op, const GcnInst& inst) {
                 ir.CompositeConstruct(ir.GetVectorReg<Shader::IR::U32>(vdata),
                                       ir.GetVectorReg<Shader::IR::U32>(vdata + 1)));
         } else {
-            static_assert(false, "buffer_atomic: type not supported");
+            static_assert(!sizeof(T*), "buffer_atomic: type not supported");
         }
     }();
     const IR::Value handle =

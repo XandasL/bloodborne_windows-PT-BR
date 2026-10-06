@@ -60,7 +60,8 @@ if (MSVC)
         /DNOMINMAX
         /WX)
 
-    if (CMAKE_VS_PLATFORM_TOOLSET MATCHES "LLVM-vs[0-9]+")
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_VS_PLATFORM_TOOLSET MATCHES "LLVM-vs[0-9]+")
+        list(REMOVE_ITEM SIRIT_CXX_FLAGS /MP /WX)
         list(APPEND SIRIT_CXX_FLAGS
              -Qunused-arguments
              -Wno-missing-braces)
