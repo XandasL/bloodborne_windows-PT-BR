@@ -33,6 +33,7 @@ Scheduler::Scheduler(const Instance& instance, bool threaded_recording)
     if (threaded_recording && !(env && env[0] == '0')) {
         record_chunk = AcquireChunk();
         recorder_thread = std::jthread(std::bind_front(&Scheduler::RecorderThread, this));
+        recorder_running = true;
     }
 #if TRACY_GPU_ENABLED
     profiler_scope = reinterpret_cast<tracy::VkCtxScope*>(std::malloc(sizeof(tracy::VkCtxScope)));
@@ -43,8 +44,9 @@ Scheduler::Scheduler(const Instance& instance, bool threaded_recording)
 }
 
 Scheduler::~Scheduler() {
-    if (recorder_thread.joinable()) {
+    if (recorder_running) {
         SyncRecording();
+        recorder_running = false;
         recorder_thread.request_stop();
         recorder_cv.notify_all();
         recorder_thread.join();
@@ -106,7 +108,7 @@ void Scheduler::BeginRendering(const RenderState& new_state) {
         .pStencilAttachment = db.has_stencil ? &stencil_attachment : nullptr,
     };
 
-    if (!recorder_thread.joinable()) {
+    if (!recorder_running) {
         current_cmdbuf.beginRendering(rendering_info);
         return;
     }
@@ -228,7 +230,7 @@ void Scheduler::WaitHostCopies() {
 }
 
 void Scheduler::KickRecording(bool force) {
-    if (!recorder_thread.joinable()) {
+    if (!recorder_running) {
         return;
     }
     // Callers kick where nobody holds the raw command buffer: deferral resumes.
@@ -263,7 +265,7 @@ void Scheduler::KickRecording(bool force) {
 }
 
 void Scheduler::SyncRecording() {
-    if (!recorder_thread.joinable()) {
+    if (!recorder_running) {
         return;
     }
     KickRecording(true);

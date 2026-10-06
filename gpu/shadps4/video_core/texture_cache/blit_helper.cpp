@@ -62,10 +62,10 @@ void BlitHelper::ReinterpretColorAsMsDepth(u32 width, u32 height, u32 num_sample
             .layerCount = 1U,
         },
     };
-    const auto [color_view_result, color_view] =
-        instance.GetDevice().createImageView(color_view_ci);
-    ASSERT_MSG(color_view_result == vk::Result::eSuccess, "Failed to create image view: {}",
-               vk::to_string(color_view_result));
+    const auto color_view_res = instance.GetDevice().createImageView(color_view_ci);
+    ASSERT_MSG(color_view_res.result == vk::Result::eSuccess, "Failed to create image view: {}",
+               vk::to_string(color_view_res.result));
+    const vk::ImageView color_view = color_view_res.value;
     const vk::ImageViewUsageCreateInfo depth_usage_ci{
         .usage = vk::ImageUsageFlagBits::eDepthStencilAttachment};
     const vk::ImageViewCreateInfo depth_view_ci = {
@@ -81,10 +81,10 @@ void BlitHelper::ReinterpretColorAsMsDepth(u32 width, u32 height, u32 num_sample
             .layerCount = 1U,
         },
     };
-    const auto [depth_view_result, depth_view] =
-        instance.GetDevice().createImageView(depth_view_ci);
-    ASSERT_MSG(depth_view_result == vk::Result::eSuccess, "Failed to create image view: {}",
-               vk::to_string(depth_view_result));
+    const auto depth_view_res = instance.GetDevice().createImageView(depth_view_ci);
+    ASSERT_MSG(depth_view_res.result == vk::Result::eSuccess, "Failed to create image view: {}",
+               vk::to_string(depth_view_res.result));
+    const vk::ImageView depth_view = depth_view_res.value;
     scheduler.DeferOperation([device = instance.GetDevice(), color_view, depth_view] {
         device.destroyImageView(color_view);
         device.destroyImageView(depth_view);
@@ -164,9 +164,10 @@ void BlitHelper::CopyBetweenMsImages(u32 width, u32 height, u32 num_samples,
             .layerCount = 1U,
         },
     };
-    const auto [src_view_result, src_view] = instance.GetDevice().createImageView(src_view_ci);
-    ASSERT_MSG(src_view_result == vk::Result::eSuccess, "Failed to create image view: {}",
-               vk::to_string(src_view_result));
+    const auto src_view_res = instance.GetDevice().createImageView(src_view_ci);
+    ASSERT_MSG(src_view_res.result == vk::Result::eSuccess, "Failed to create image view: {}",
+               vk::to_string(src_view_res.result));
+    const vk::ImageView src_view = src_view_res.value;
 
     const vk::ImageViewUsageCreateInfo dst_usage_ci{.usage =
                                                         vk::ImageUsageFlagBits::eColorAttachment};
@@ -183,9 +184,10 @@ void BlitHelper::CopyBetweenMsImages(u32 width, u32 height, u32 num_samples,
             .layerCount = 1U,
         },
     };
-    const auto [dst_view_result, dst_view] = instance.GetDevice().createImageView(dst_view_ci);
-    ASSERT_MSG(dst_view_result == vk::Result::eSuccess, "Failed to create image view: {}",
-               vk::to_string(dst_view_result));
+    const auto dst_view_res = instance.GetDevice().createImageView(dst_view_ci);
+    ASSERT_MSG(dst_view_res.result == vk::Result::eSuccess, "Failed to create image view: {}",
+               vk::to_string(dst_view_res.result));
+    const vk::ImageView dst_view = dst_view_res.value;
     scheduler.DeferOperation([device = instance.GetDevice(), src_view, dst_view] {
         device.destroyImageView(src_view);
         device.destroyImageView(dst_view);
