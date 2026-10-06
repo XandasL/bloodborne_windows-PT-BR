@@ -6,10 +6,13 @@ Standalone Windows/Linux graphical interface for configuring, managing mods,
 and launching the Bloodborne HLE translation runner.
 """
 
+import contextlib
+import io
 import json
 import os
 from pathlib import Path
 import shutil
+import struct
 import subprocess
 import sys
 import threading
@@ -17,12 +20,24 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import zipfile
 
-# Root repository directory
-BASE_DIR = Path(__file__).resolve().parent.parent if Path(__file__).parent.name == "launcher" else Path.cwd()
-SCRIPTS_DIR = BASE_DIR / "scripts"
+# Determine base paths depending on whether running in frozen (PyInstaller) mode
+if getattr(sys, "frozen", False):
+    EXE_DIR = Path(sys.executable).resolve().parent
+    BUNDLE_DIR = Path(getattr(sys, "_MEIPASS", EXE_DIR)).resolve()
+else:
+    EXE_DIR = Path(__file__).resolve().parent.parent if Path(__file__).parent.name == "launcher" else Path.cwd()
+    BUNDLE_DIR = EXE_DIR
+
+BASE_DIR = EXE_DIR
+SCRIPTS_DIR = BUNDLE_DIR / "scripts" if (BUNDLE_DIR / "scripts").is_dir() else BASE_DIR / "scripts"
+PATCHES_DIR = BUNDLE_DIR / "patches" if (BUNDLE_DIR / "patches").is_dir() else BASE_DIR / "patches"
 MODS_DIR = BASE_DIR / "mods"
 CONFIG_FILE = BASE_DIR / "bbport.ini"
 MODS_CONFIG = BASE_DIR / "mods.json"
+
+# Ensure scripts directory is in sys.path for direct in-process execution
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
 
 CUSA_CANDIDATES = [
     "CUSA00900", "CUSA03173", "CUSA00207", "CUSA00208",
@@ -52,7 +67,6 @@ def read_sfo_metadata(sfo_path):
         data = sfo_path.read_bytes()
         if data[:4] != b'\x00PSF':
             return {}
-        import struct
         key_off, val_off, count = struct.unpack('<III', data[8:20])
         entries = {}
         for i in range(count):
@@ -63,6 +77,20 @@ def read_sfo_metadata(sfo_path):
         return entries
     except Exception:
         return {}
+
+
+class StdoutRedirector:
+    """Redirects print statements directly to the GUI activity log."""
+    def __init__(self, log_callback):
+        self.log_callback = log_callback
+
+    def write(self, text):
+        cleaned = text.strip()
+        if cleaned:
+            self.log_callback(cleaned)
+
+    def flush(self):
+        pass
 
 
 class BloodborneLauncherApp(tk.Tk):
@@ -131,7 +159,6 @@ class BloodborneLauncherApp(tk.Tk):
         style.map("TCombobox", fieldbackground=[("readonly", card_bg)], selectbackground=[("readonly", accent)])
 
     def build_ui(self):
-        # 1. Header banner
         header_frame = ttk.Frame(self)
         header_frame.pack(fill="x", padx=16, pady=(12, 6))
 
@@ -140,7 +167,6 @@ class BloodborneLauncherApp(tk.Tk):
         sub_lbl = ttk.Label(header_frame, text="Cross-Platform HLE Recompiler & Translation Launcher", style="SubHeader.TLabel")
         sub_lbl.pack(anchor="w")
 
-        # 2. Game directory selection card
         dir_card = ttk.Frame(self, style="Card.TFrame", padding=10)
         dir_card.pack(fill="x", padx=16, pady=6)
 
@@ -157,7 +183,6 @@ class BloodborneLauncherApp(tk.Tk):
         self.game_info_lbl = ttk.Label(dir_card, text="Checking game files...", style="Card.TLabel", foreground="#e4e4e7")
         self.game_info_lbl.grid(row=2, column=0, columnspan=2, sticky="w", pady=(6, 0))
 
-        # 3. Notebook / Tabs
         notebook = ttk.Notebook(self)
         notebook.pack(fill="both", expand=True, padx=16, pady=6)
 
@@ -173,7 +198,6 @@ class BloodborneLauncherApp(tk.Tk):
         self.build_mods_tab(tab_mods)
         self.build_diag_tab(tab_diag)
 
-        # 4. Action bar & launch button
         action_bar = ttk.Frame(self)
         action_bar.pack(fill="x", padx=16, pady=8)
 
@@ -186,14 +210,12 @@ class BloodborneLauncherApp(tk.Tk):
         smoke_btn = ttk.Button(action_bar, text="🔍 Vulkan Smoke Test", style="Secondary.TButton", command=self.run_smoke_test)
         smoke_btn.pack(side="left")
 
-        # 5. Output Console Drawer
         self.build_console_drawer()
 
     def build_settings_tab(self, parent):
         card = ttk.Frame(parent, style="Card.TFrame", padding=12)
         card.pack(fill="both", expand=True, padx=4, pady=4)
 
-        # Performance Grid
         ttk.Label(card, text="PERFORMANCE & RESOLUTION", style="Card.TLabel", font=("Segoe UI", 10, "bold"), foreground="#ef4444").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
 
         ttk.Label(card, text="Target Framerate:", style="Card.TLabel").grid(row=1, column=0, sticky="w", pady=4)
@@ -212,7 +234,6 @@ class BloodborneLauncherApp(tk.Tk):
         preset_combo = ttk.Combobox(card, textvariable=self.preset_var, values=["1", "2", "3", "0"], state="readonly", width=18)
         preset_combo.grid(row=4, column=1, sticky="w", pady=4, padx=8)
 
-        # Effects Grid
         ttk.Label(card, text="GRAPHICAL EFFECTS & PATCHES", style="Card.TLabel", font=("Segoe UI", 10, "bold"), foreground="#ef4444").grid(row=5, column=0, columnspan=2, sticky="w", pady=(14, 8))
 
         fx_frame = ttk.Frame(card, style="Card.TFrame")
@@ -244,7 +265,6 @@ class BloodborneLauncherApp(tk.Tk):
         refresh_btn = ttk.Button(top_bar, text="🔄 Refresh", style="Secondary.TButton", command=self.load_mods)
         refresh_btn.pack(side="right")
 
-        # Mod list frame with canvas for scrolling
         list_frame = ttk.Frame(card, style="Card.TFrame")
         list_frame.pack(fill="both", expand=True)
 
@@ -271,7 +291,7 @@ class BloodborneLauncherApp(tk.Tk):
             "• Graphics: Vulkan 1.3 translation layer with temporal reconstruction\n"
             "• Memory: Direct Win32 Pagefile Section physical memory aliasing (< 1 TiB)\n\n"
             "To verify your graphics drivers and swapchain negotiation without running the game,\n"
-            "click 'Vulkan Smoke Test' below or in the action bar."
+            "click 'Run Vulkan Smoke Test Now' below."
         )
         ttk.Label(card, text=diag_text, style="Card.TLabel", justify="left").pack(anchor="w", pady=4)
 
@@ -293,8 +313,10 @@ class BloodborneLauncherApp(tk.Tk):
         self.log_text.pack(fill="x", pady=(2, 0))
 
     def log(self, text):
-        self.log_text.insert("end", text + "\n")
-        self.log_text.see("end")
+        def _append():
+            self.log_text.insert("end", text + "\n")
+            self.log_text.see("end")
+        self.after(0, _append)
 
     def clear_log(self):
         self.log_text.delete("1.0", "end")
@@ -316,7 +338,6 @@ class BloodborneLauncherApp(tk.Tk):
             self.game_info_lbl.configure(text="⚠️ Directory found, but 'eboot.bin' is missing inside.", foreground="#f59e0b")
             return
 
-        # Check SELF header
         try:
             head = eboot.read_bytes()[:4]
             if head != b'O\x15=\x1d':
@@ -372,7 +393,7 @@ class BloodborneLauncherApp(tk.Tk):
 
     def add_mod(self):
         path = filedialog.askopenfilename(
-            title="Select Mod Package (.zip) or select directory",
+            title="Select Mod Package (.zip)",
             filetypes=[("Mod Archives", "*.zip"), ("All Files", "*.*")]
         )
         if not path:
@@ -416,7 +437,6 @@ class BloodborneLauncherApp(tk.Tk):
             "effect_ssr": "1" if self.ssr_var.get() else "0"
         }
 
-        # Update existing keys or append
         existing_keys = set()
         new_lines = []
         for line in lines:
@@ -480,60 +500,111 @@ class BloodborneLauncherApp(tk.Tk):
         self.launch_btn.configure(state="disabled")
         self.stop_btn.configure(state="normal")
         self.clear_log()
-        self.log(f"Launching Bloodborne from: {gdir}")
+        self.log(f"Preparing Bloodborne from: {gdir}")
 
         def worker():
-            py_exe = sys.executable
             out_dir = BASE_DIR / "out"
             out_dir.mkdir(parents=True, exist_ok=True)
+            game_path = Path(gdir).resolve()
 
-            steps = [
-                ("Preparing binary image", [py_exe, str(SCRIPTS_DIR / "prepare.py"), gdir, "--out", str(out_dir)]),
-                ("Linking libc exports", [py_exe, str(SCRIPTS_DIR / "link_libc.py"), gdir, "--out", str(out_dir)]),
-                ("Linking guest modules", [py_exe, str(SCRIPTS_DIR / "link_modules.py"), gdir, "--out", str(out_dir)]),
-                ("Applying content profile & patches", [py_exe, str(SCRIPTS_DIR / "patches.py"), "--out", str(out_dir), "--fps", self.fps_var.get(), "--game-dir", gdir])
-            ]
+            # Execute preparation pipeline completely IN-PROCESS
+            # This eliminates subprocess calls to python or the frozen executable
+            redirector = StdoutRedirector(self.log)
+            old_stdout = sys.stdout
+            old_stderr = sys.stderr
 
-            for desc, cmd in steps:
-                self.log(f">> {desc}...")
-                p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=str(BASE_DIR))
-                for line in p.stdout:
-                    self.log(f"   {line.rstrip()}")
-                p.wait()
-                if p.returncode != 0:
-                    self.log(f"❌ Failed: {desc} exited with code {p.returncode}")
-                    self.launch_btn.configure(state="normal")
-                    self.stop_btn.configure(state="disabled")
-                    return
+            try:
+                sys.stdout = redirector
+                sys.stderr = redirector
 
-            self.log(">> Booting Bloodborne via bb-probe...")
+                # Step 1: Prepare ELF image
+                self.log(">> [1/4] Preparing binary image...")
+                import prepare
+                prepare.prepare(game_path, out_dir)
+
+                # Step 2: Link Libc
+                self.log(">> [2/4] Linking libc exports...")
+                import link_libc
+                link_libc.link(game_path, out_dir)
+
+                # Step 3: Link Guest Modules
+                self.log(">> [3/4] Linking guest modules...")
+                import link_modules
+                link_modules.link(game_path, out_dir)
+
+                # Step 4: Content profile & patches
+                self.log(">> [4/4] Applying content profile & patches...")
+                import content_profile
+                content_profile.prepare(game_path, out_dir, sku="full")
+
+                import patches
+                xml_path = PATCHES_DIR / "Bloodborne.xml"
+                if not xml_path.is_file():
+                    xml_path = BASE_DIR / "patches" / "Bloodborne.xml"
+
+                old_argv = sys.argv
+                try:
+                    sys.argv = [
+                        "patches.py",
+                        "--out", str(out_dir),
+                        "--fps", self.fps_var.get(),
+                        "--game-dir", str(game_path),
+                        "--settings", str(CONFIG_FILE),
+                        "--xml", str(xml_path)
+                    ]
+                    patches.main()
+                finally:
+                    sys.argv = old_argv
+
+                self.log(">> Preparation complete!")
+
+            except Exception as e:
+                self.log(f"❌ Preparation failed: {e}")
+                self.after(0, lambda: self.launch_btn.configure(state="normal"))
+                self.after(0, lambda: self.stop_btn.configure(state="disabled"))
+                return
+            finally:
+                sys.stdout = old_stdout
+                sys.stderr = old_stderr
+
+            # Now launch the actual native C++ game engine (bb-probe.exe)
+            self.log(f">> Booting Bloodborne via {probe_exe.name}...")
             env = os.environ.copy()
-            env["BB_GAME_DIR"] = gdir
+            env["BB_GAME_DIR"] = str(game_path)
+            env["BB_CONFIG"] = str(CONFIG_FILE)
+            env["PATH"] = str(BASE_DIR) + os.pathsep + env.get("PATH", "")
 
-            self.running_proc = subprocess.Popen(
-                [str(probe_exe)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                cwd=str(BASE_DIR),
-                env=env
-            )
+            try:
+                self.running_proc = subprocess.Popen(
+                    [str(probe_exe)],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    cwd=str(BASE_DIR),
+                    env=env
+                )
 
-            for line in self.running_proc.stdout:
-                self.log(line.rstrip())
+                for line in self.running_proc.stdout:
+                    self.log(line.rstrip())
 
-            self.running_proc.wait()
-            self.log(f">> Game process terminated (Code: {self.running_proc.returncode})")
-            self.running_proc = None
-            self.launch_btn.configure(state="normal")
-            self.stop_btn.configure(state="disabled")
+                self.running_proc.wait()
+                self.log(f">> Game process terminated (Exit code: {self.running_proc.returncode})")
+            except Exception as e:
+                self.log(f"❌ Failed to run {probe_exe.name}: {e}")
+            finally:
+                self.running_proc = None
+                self.after(0, lambda: self.launch_btn.configure(state="normal"))
+                self.after(0, lambda: self.stop_btn.configure(state="disabled"))
 
         threading.Thread(target=worker, daemon=True).start()
 
     def stop_game(self):
         if self.running_proc:
             self.log("Stopping game process...")
-            self.running_proc.terminate()
+            try:
+                self.running_proc.terminate()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
