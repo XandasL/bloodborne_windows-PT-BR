@@ -5,7 +5,6 @@
 #include "r_ajm_types.h"
 
 Batch g_ajm_batches[MAX_BATCHES];
-size_t g_ajm_batches_run = 0;
 
 int r_ajm_parse_job(const unsigned char *p, uint32_t size, Job *job);
 void r_ajm_run_job(Context *ctx, uint32_t id, Job *job);

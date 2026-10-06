@@ -114,6 +114,10 @@ struct OrbisVideoOutEventData {
     u64 time : 12;
     u64 count : 4;
     u64 flip_arg : 48;
+
+    constexpr OrbisVideoOutEventData() : time{0}, count{0}, flip_arg{0} {}
+    constexpr explicit OrbisVideoOutEventData(u64 raw)
+        : time{raw & 0xFFF}, count{(raw >> 12) & 0xF}, flip_arg{(raw >> 16) & 0xFFFFFFFFFFFFULL} {}
 };
 
 void PS4_SYSV_ABI sceVideoOutSetBufferAttribute(BufferAttribute* attribute, PixelFormat pixelFormat,

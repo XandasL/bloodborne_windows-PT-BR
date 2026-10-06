@@ -166,12 +166,17 @@ public:
 
     struct AscQueueInfo {
         static constexpr size_t Pm4BufferSize = 1024;
-        VAddr map_addr;
-        u32* read_addr;
-        u32 ring_size_dw;
-        u32 pipe_id;
-        std::array<u32, Pm4BufferSize> tmp_packet;
-        u32 tmp_dwords;
+        VAddr map_addr{};
+        u32* read_addr{};
+        u32 ring_size_dw{};
+        u32 pipe_id{};
+        std::array<u32, Pm4BufferSize> tmp_packet{};
+        u32 tmp_dwords{};
+
+        AscQueueInfo() = default;
+        AscQueueInfo(VAddr map_addr_, u32* read_addr_, u32 ring_size_dw_, u32 pipe_id_)
+            : map_addr{map_addr_}, read_addr{read_addr_}, ring_size_dw{ring_size_dw_},
+              pipe_id{pipe_id_}, tmp_packet{}, tmp_dwords{0} {}
     };
     Common::SlotVector<AscQueueInfo> asc_queues{};
 
