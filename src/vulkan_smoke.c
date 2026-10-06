@@ -18,8 +18,7 @@ int vulkan_smoke(void) {
     CHECK(vkEnumeratePhysicalDevices(instance, &count, devices));
     uint32_t chosen = 0;
     for (uint32_t i = 0; i < count; ++i) {
-        VkPhysicalDeviceProperties prop;
-        vkGetPhysicalDeviceProperties(devices[i], &prop);
+        VkPhysicalDeviceProperties prop; vkGetPhysicalDeviceProperties(devices[i], &prop);
         printf("  [Vulkan Device #%u] %s (Type: %d)\n", i, prop.deviceName, prop.deviceType);
         if (prop.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) chosen = i;
     }
@@ -40,12 +39,12 @@ int vulkan_smoke(void) {
     VkQueue queue; vkGetDeviceQueue(device, family, 0, &queue);
     VkBufferCreateInfo bci = {.sType=VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, .size=4096, .usage=VK_BUFFER_USAGE_TRANSFER_DST_BIT, .sharingMode=VK_SHARING_MODE_EXCLUSIVE};
     VkBuffer buffer; CHECK(vkCreateBuffer(device, &bci, NULL, &buffer));
-    VkMemoryRequirements requirements; vkGetBufferMemoryRequirements(device, buffer, &requirements);
-    VkPhysicalDeviceMemoryProperties memory; vkGetPhysicalDeviceMemoryProperties(physical, &memory);
+    VkMemoryRequirements req; vkGetBufferMemoryRequirements(device, buffer, &req);
+    VkPhysicalDeviceMemoryProperties mem; vkGetPhysicalDeviceMemoryProperties(physical, &mem);
     uint32_t type = 0, wanted = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    while (type < memory.memoryTypeCount && !((requirements.memoryTypeBits & (1u << type)) && (memory.memoryTypes[type].propertyFlags & wanted) == wanted)) ++type;
-    if (type == memory.memoryTypeCount) { fprintf(stderr, "Vulkan: no coherent host memory\n"); exit(1); }
-    VkMemoryAllocateInfo mai = {.sType=VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, .allocationSize=requirements.size, .memoryTypeIndex=type};
+    while (type < mem.memoryTypeCount && !((req.memoryTypeBits & (1u << type)) && (mem.memoryTypes[type].propertyFlags & wanted) == wanted)) ++type;
+    if (type == mem.memoryTypeCount) { fprintf(stderr, "Vulkan: no coherent host memory\n"); exit(1); }
+    VkMemoryAllocateInfo mai = {.sType=VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, .allocationSize=req.size, .memoryTypeIndex=type};
     VkDeviceMemory allocation; CHECK(vkAllocateMemory(device, &mai, NULL, &allocation));
     CHECK(vkBindBufferMemory(device, buffer, allocation, 0));
     VkCommandPoolCreateInfo pci = {.sType=VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO, .queueFamilyIndex=family};
@@ -69,8 +68,5 @@ int vulkan_smoke(void) {
     return ok ? 0 : 1;
 }
 #else
-int vulkan_smoke(void) {
-    fprintf(stderr, "Vulkan SDK headers not found at compile time\n");
-    return 1;
-}
+int vulkan_smoke(void) { fprintf(stderr, "Vulkan SDK headers not found at compile time\n"); return 1; }
 #endif

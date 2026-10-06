@@ -31,8 +31,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
 
 add_library(shadps4_fsr4 SHARED
-    shadps4_fsr4.cpp
+    shadps4_fsr4_state.cpp
+    shadps4_fsr4_init.cpp
+    shadps4_fsr4_loader.cpp
+    shadps4_fsr4_context.cpp
+    shadps4_fsr4_eval.cpp
     shadps4_fsr4.h
+    shadps4_fsr4_state.h
     "${FSR_VULKAN_ROOT}/src/ffx_vk_fsr4_v07.c"
     "${FSR_VULKAN_ROOT}/src/ffx_vk_fsr4_v07_assets.c"
     "${FSR_VULKAN_ROOT}/src/ffx_vk_fsr4_v07_provider.c"

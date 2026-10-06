@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: MIT
  * PS4 Virtual Memory Runtime Types and Internal Signatures.
- * Single responsibility: Core type definitions and shared prototypes. (~68 LOC)
  */
 #ifndef R_MEM_TYPES_H
 #define R_MEM_TYPES_H
@@ -12,21 +11,17 @@
 #include <inttypes.h>
 #if __has_include("../../runtime.h")
 #include "../../runtime.h"
-#else
-#include "runtime.h"
-#endif
-#if __has_include("../../include/platform/bb_common.h")
 #include "../../include/platform/bb_common.h"
 #include "../../include/platform/sync.h"
 #include "../../include/platform/memory.h"
 #else
+#include "runtime.h"
 #include "platform/bb_common.h"
 #include "platform/sync.h"
 #include "platform/memory.h"
 #endif
 
 typedef struct BbDirectPool BbDirectPool;
-
 #define PAGE UINT64_C(16384)
 #define USER_MIN UINT64_C(0x1000000000)
 #define USER_MAX UINT64_C(0xfc00000000)
@@ -51,21 +46,13 @@ typedef struct {
 typedef struct { void *start; uint64_t offset, length; int8_t prot, type; int16_t reserved; int32_t operation; } BatchEntry;
 typedef void (*GpuRange)(uintptr_t address, uint64_t size);
 
-void r_mem_write_lock(void);
-void r_mem_write_unlock(void);
-void r_mem_read_lock(void);
-void r_mem_read_unlock(void);
-uint64_t r_mem_generation(void);
-uint64_t r_mem_pool_size(void);
-BbDirectPool* r_mem_pool(void);
-uint8_t* r_mem_backing(void);
-uint64_t r_mem_flex_alloc(uint64_t size);
-void r_mem_flex_free(uint64_t phys, uint64_t size);
-
-size_t r_mem_vma_index(uintptr_t a);
-int r_mem_vma_insert(size_t at, Vma v);
-void r_mem_vma_erase(size_t at, size_t n);
-size_t r_mem_carve(uintptr_t start, uintptr_t end, int *error);
+void r_mem_write_lock(void); void r_mem_write_unlock(void);
+void r_mem_read_lock(void); void r_mem_read_unlock(void);
+uint64_t r_mem_generation(void); uint64_t r_mem_pool_size(void);
+BbDirectPool* r_mem_pool(void); uint8_t* r_mem_backing(void);
+uint64_t r_mem_flex_alloc(uint64_t size); void r_mem_flex_free(uint64_t phys, uint64_t size);
+size_t r_mem_vma_index(uintptr_t a); int r_mem_vma_insert(size_t at, Vma v);
+void r_mem_vma_erase(size_t at, size_t n); size_t r_mem_carve(uintptr_t start, uintptr_t end, int *error);
 int r_mem_covered(uintptr_t start, uintptr_t end, int allow_reserved);
 int r_mem_overlaps(uintptr_t start, uintptr_t end, int ignore_reserved);
 uintptr_t r_mem_find_free(uintptr_t hint, uint64_t size, uint64_t alignment);
@@ -80,5 +67,4 @@ extern Vma *g_mem_vmas;
 extern size_t g_mem_vma_count, g_mem_vma_capacity;
 extern size_t g_mem_allocations, g_mem_maps, g_mem_flex_maps, g_mem_protects, g_mem_queries;
 extern uint64_t g_mem_live_bytes, g_mem_flex_bytes;
-
 #endif /* R_MEM_TYPES_H */

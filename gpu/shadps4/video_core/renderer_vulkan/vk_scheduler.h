@@ -890,7 +890,8 @@ private:
     std::condition_variable_any event_cv;
     struct PendingOp {
         Common::UniqueFunction<void> callback;
-        u64 gpu_tick;
+        u64 gpu_tick{0};
+        PendingOp() = default;
         PendingOp(Common::UniqueFunction<void> cb, u64 tick) : callback(std::move(cb)), gpu_tick(tick) {}
     };
     std::queue<PendingOp> pending_ops;

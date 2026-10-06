@@ -153,6 +153,7 @@ void Scheduler::TraceDirectRecording(void* caller) {
         top.emplace_back(count, address);
     }
     std::ranges::sort(top, std::greater{});
+#ifndef _WIN32
     for (size_t i = 0; i < std::min<size_t>(top.size(), 8); ++i) {
         Dl_info info{};
         dladdr(top[i].second, &info);
@@ -162,6 +163,12 @@ void Scheduler::TraceDirectRecording(void* caller) {
                     static_cast<unsigned long>(reinterpret_cast<uintptr_t>(top[i].second) -
                                                reinterpret_cast<uintptr_t>(info.dli_fbase)));
     }
+#else
+    for (size_t i = 0; i < std::min<size_t>(top.size(), 8); ++i) {
+        std::printf("Recorder sync caller: %llu x %p\n",
+                    static_cast<unsigned long long>(top[i].first), top[i].second);
+    }
+#endif
     callers.clear();
 }
 
