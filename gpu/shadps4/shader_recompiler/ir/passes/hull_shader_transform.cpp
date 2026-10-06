@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2024-2026 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <span>
 #include <unordered_map>
 #include "common/assert.h"
 #include "shader_recompiler/info.h"
@@ -516,7 +517,7 @@ void HullShaderTransform(IR::Program& program, const RuntimeInfo& runtime_info) 
                             ReadTessControlPointAttribute(addr, stride, ir, i, is_tcs_output_read);
                         read_components.push_back(ir.BitCast<IR::U32>(component));
                     }
-                    attr_read = ir.PackUint2x32(ir.CompositeConstruct(read_components));
+                    attr_read = ir.PackUint2x32(ir.CompositeConstruct(std::span{read_components.data(), read_components.size()}));
                 }
                 inst.ReplaceUsesWithAndRemove(attr_read);
                 break;
@@ -595,7 +596,7 @@ void DomainShaderTransform(const IR::Program& program, const RuntimeInfo& runtim
                         const IR::F32 component = GetInput(addr, i);
                         read_components.push_back(ir.BitCast<IR::U32>(component));
                     }
-                    attr_read = ir.PackUint2x32(ir.CompositeConstruct(read_components));
+                    attr_read = ir.PackUint2x32(ir.CompositeConstruct(std::span{read_components.data(), read_components.size()}));
                 }
                 inst.ReplaceUsesWithAndRemove(attr_read);
                 break;

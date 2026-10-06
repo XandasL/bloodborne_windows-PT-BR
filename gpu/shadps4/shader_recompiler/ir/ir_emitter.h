@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <span>
 #include <cstring>
 #include <type_traits>
 
@@ -188,6 +189,14 @@ public:
     [[nodiscard]] Value CompositeConstruct(const Value& e1, const Value& e2, const Value& e3,
                                            const Value& e4);
     [[nodiscard]] Value CompositeConstruct(std::span<const Value> values);
+
+    template <typename Container,
+              typename = decltype(std::declval<const Container&>().data()),
+              typename = decltype(std::declval<const Container&>().size()),
+              std::enable_if_t<!std::is_convertible_v<const Container&, const Value&>, int> = 0>
+    [[nodiscard]] Value CompositeConstruct(const Container& container) {
+        return CompositeConstruct(std::span<const Value>{container.data(), container.size()});
+    }
 
     [[nodiscard]] Value CompositeExtract(const Value& vector, size_t element);
     [[nodiscard]] Value CompositeInsert(const Value& vector, const Value& object, size_t element);

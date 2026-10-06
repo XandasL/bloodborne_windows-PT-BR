@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2025 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <span>
 #include "shader_recompiler/info.h"
 #include "shader_recompiler/ir/basic_block.h"
 #include "shader_recompiler/ir/ir_emitter.h"
@@ -102,7 +103,7 @@ static IR::Value LoadBufferFormat(IR::IREmitter& ir, const IR::Value handle, con
             components.push_back(ir.Imm32(0.f));
         }
     }
-    const auto swizzled = ApplySwizzle(ir, ir.CompositeConstruct(components), format_info.swizzle);
+    const auto swizzled = ApplySwizzle(ir, ir.CompositeConstruct(std::span{components.data(), components.size()}), format_info.swizzle);
     return swizzled;
 }
 
@@ -117,7 +118,7 @@ static void StoreBufferFormat(IR::IREmitter& ir, const IR::Value handle, const I
         components.push_back(ApplyWriteNumberConversion(ir, component, format_info.num_conversion));
     }
     const auto real_value =
-        components.size() == 1 ? components[0] : ir.CompositeConstruct(components);
+        components.size() == 1 ? components[0] : ir.CompositeConstruct(std::span{components.data(), components.size()});
 
     switch (format_info.data_format) {
     case AmdGpu::DataFormat::FormatInvalid:
