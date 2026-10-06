@@ -58,6 +58,21 @@ jobs:
           echo "BOOST_INCLUDEDIR=$boostDir" >> $env:GITHUB_ENV
           echo "Boost_INCLUDE_DIR=$boostDir" >> $env:GITHUB_ENV
 
+      - name: Install FFmpeg Shared (Dev)
+        shell: pwsh
+        run: |
+          $ffmpegDir = "C:\ffmpeg"
+          if (-not (Test-Path "$ffmpegDir\include\libavcodec\avcodec.h")) {
+            Write-Host "Downloading FFmpeg shared build..."
+            $ffmpegArchive = "$env:RUNNER_TEMP\ffmpeg.zip"
+            Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip" -OutFile $ffmpegArchive
+            Expand-Archive -Path $ffmpegArchive -DestinationPath "$env:RUNNER_TEMP\ffmpeg_extracted" -Force
+            $extractedRoot = (Get-ChildItem -Path "$env:RUNNER_TEMP\ffmpeg_extracted" -Directory | Select-Object -First 1).FullName
+            Move-Item -Path $extractedRoot -Destination $ffmpegDir -Force
+          }
+          echo "FFMPEG_ROOT=$ffmpegDir" >> $env:GITHUB_ENV
+          echo "$ffmpegDir\bin" >> $env:GITHUB_PATH
+
       - name: Set up Ninja
         uses: ashutoshvarma/setup-ninja@master
         with:
@@ -83,6 +98,9 @@ jobs:
             $cmakeArgs += "-DBOOST_ROOT=$($env:BOOST_ROOT)"
             $cmakeArgs += "-DBoost_INCLUDE_DIR=$($env:BOOST_ROOT)"
           }
+          if ($env:FFMPEG_ROOT) {
+            $cmakeArgs += "-DFFMPEG_ROOT=$($env:FFMPEG_ROOT)"
+          }
           cmake @cmakeArgs
 
       - name: Build Windows Runner (bb-probe)
@@ -101,6 +119,9 @@ jobs:
           }
           if (Test-Path "build/gpu/bbgpu.dll") {
             Copy-Item "build/gpu/bbgpu.dll" "dist/bloodborne-windows-x64/"
+          }
+          if (Test-Path "C:\ffmpeg\bin") {
+            Copy-Item "C:\ffmpeg\bin\*.dll" "dist/bloodborne-windows-x64/"
           }
           if (Test-Path "build/dlss_bridge/shadps4_dlss.dll") {
             Copy-Item "build/dlss_bridge/shadps4_dlss.dll" "dist/bloodborne-windows-x64/"

@@ -287,7 +287,16 @@ set(COMMON
     shadps4/common/string_util.cpp shadps4/common/thread.cpp shadps4/common/signal_context.cpp
     shim/common/logging/log.cpp)
 file(GLOB AVPLAYER CONFIGURE_DEPENDS shadps4/core/libraries/avplayer/*.cpp)
-if (NOT WIN32)
+set(VIDEODEC shadps4/core/libraries/videodec/video_utils.cpp)
+if (WIN32)
+    if (NOT DEFINED FFMPEG_ROOT AND DEFINED ENV{FFMPEG_ROOT})
+        set(FFMPEG_ROOT "$ENV{FFMPEG_ROOT}")
+    endif()
+    if (NOT (DEFINED FFMPEG_ROOT AND EXISTS "${FFMPEG_ROOT}/include"))
+        set(AVPLAYER "")
+        set(VIDEODEC "")
+    endif()
+else()
     pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavformat libavcodec libavutil libswscale libswresample)
 endif()
 file(GLOB SHIM_SOURCES CONFIGURE_DEPENDS shim/*.cpp shim/*/*.cpp)
@@ -295,7 +304,7 @@ add_library(bbgpu SHARED ${VIDEO_CORE} ${RECOMPILER} ${COMMON} ${SHIM_SOURCES}
     shadps4/core/libraries/gnmdriver/gnmdriver.cpp
     shadps4/core/libraries/videoout/driver.cpp shadps4/core/libraries/videoout/video_out.cpp
     shadps4/core/libraries/kernel/equeue.cpp ${AVPLAYER}
-    shadps4/core/libraries/videodec/video_utils.cpp)
+    ${VIDEODEC})
 add_dependencies(bbgpu host_shaders)
 # In-game settings menu: Dear ImGui (third_party/imgui, MIT) with its Vulkan backend, and an
 # embedded Cyrillic font (third_party/fonts).
@@ -326,6 +335,16 @@ if (UNIX AND NOT APPLE)
 endif()
 if (WIN32)
     target_compile_definitions(bbgpu PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN VK_USE_PLATFORM_WIN32_KHR)
+    if (DEFINED FFMPEG_ROOT AND EXISTS "${FFMPEG_ROOT}/include")
+        target_include_directories(bbgpu PRIVATE "${FFMPEG_ROOT}/include")
+        target_link_libraries(bbgpu PUBLIC
+            "${FFMPEG_ROOT}/lib/avcodec.lib"
+            "${FFMPEG_ROOT}/lib/avformat.lib"
+            "${FFMPEG_ROOT}/lib/avutil.lib"
+            "${FFMPEG_ROOT}/lib/swscale.lib"
+            "${FFMPEG_ROOT}/lib/swresample.lib"
+        )
+    endif()
 endif()
 
 # Explicit test targets; neither launches the game nor needs a Vulkan device.
