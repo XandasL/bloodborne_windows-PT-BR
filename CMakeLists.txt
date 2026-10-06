@@ -66,7 +66,7 @@ if (WIN32)
     target_link_libraries(bb-probe PRIVATE bbgpu atrac9 PkgConfig::SDL3 Vulkan::Vulkan)
 else()
     target_compile_options(bb-probe PRIVATE -Wall -Wextra -Werror -no-pie -pthread)
-    target_link_libraries(bb-probe PRIVATE bbgpu atrac9 PkgConfig::SDL3 Vulkan::Vulkan m pthread)
+    target_link_libraries(bb-probe PRIVATE bbgpu atrac9 PkgConfig::SDL3 PkgConfig::FFMPEG Vulkan::Vulkan m pthread)
 endif()
 
 # -----------------------------------------------------------------------------
