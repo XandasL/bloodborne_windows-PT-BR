@@ -344,24 +344,24 @@ void Runtime::CopyImage(VideoCore::Image* src, VideoCore::Image* dst) {
                 // 3D images must use layerCount=1
                 region.srcSubresource.layerCount = 1;
                 region.dstSubresource.layerCount = 1;
-                region.extent = vk::Extent3D(mip_w, mip_h, mip_d);
+                region.extent = vk::Extent3D{mip_w, mip_h, mip_d};
             } else {
                 // Array images
                 const u32 copy_layers = std::min(src_layers, dst_layers);
                 region.srcSubresource.layerCount = copy_layers;
                 region.dstSubresource.layerCount = copy_layers;
-                region.extent = vk::Extent3D(mip_w, mip_h, 1);
+                region.extent = vk::Extent3D{mip_w, mip_h, 1};
             }
         } else if (is_2d_to_3d) {
             // 2D array -> 3D volume
             region.srcSubresource.layerCount = src_layers;
             region.dstSubresource.layerCount = 1;
-            region.extent = vk::Extent3D(mip_w, mip_h, src_layers);
+            region.extent = vk::Extent3D{mip_w, mip_h, src_layers};
         } else if (is_3d_to_2d) {
             // 3D volume -> 2D array
             region.srcSubresource.layerCount = 1;
             region.dstSubresource.layerCount = dst_layers;
-            region.extent = vk::Extent3D(mip_w, mip_h, dst_layers);
+            region.extent = vk::Extent3D{mip_w, mip_h, dst_layers};
         }
 
         regions.push_back(region);
