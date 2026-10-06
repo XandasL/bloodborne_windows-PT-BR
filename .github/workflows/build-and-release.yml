@@ -107,6 +107,12 @@ jobs:
         run: |
           cmake --build build --config Release --target bb-probe
 
+      - name: Build Graphical Launcher (.exe)
+        shell: pwsh
+        run: |
+          pip install pyinstaller
+          python -m PyInstaller --onefile --windowed --name BloodborneLauncher launcher/bloodborne_gui.py
+
       - name: Package Windows Artifacts
         shell: pwsh
         run: |
@@ -114,6 +120,9 @@ jobs:
           
           # Copy binaries
           Copy-Item "build/bb-probe.exe" "dist/bloodborne-windows-x64/"
+          if (Test-Path "dist/BloodborneLauncher.exe") {
+            Copy-Item "dist/BloodborneLauncher.exe" "dist/bloodborne-windows-x64/"
+          }
           if (Test-Path "build/bb-gpu-capabilities.exe") {
             Copy-Item "build/bb-gpu-capabilities.exe" "dist/bloodborne-windows-x64/"
           }
@@ -130,12 +139,14 @@ jobs:
             Copy-Item "build/fsr4_addon/shadps4_fsr4.dll" "dist/bloodborne-windows-x64/"
           }
           
-          # Copy runner scripts and tooling
+          # Copy runner scripts, launcher and tooling
           Copy-Item "run.bat" "dist/bloodborne-windows-x64/"
           Copy-Item "run.ps1" "dist/bloodborne-windows-x64/"
           Copy-Item -Recurse "scripts" "dist/bloodborne-windows-x64/"
+          Copy-Item -Recurse "launcher" "dist/bloodborne-windows-x64/"
           Copy-Item "LICENSE" "dist/bloodborne-windows-x64/"
           Copy-Item "README.md" "dist/bloodborne-windows-x64/"
+          Copy-Item "RUNNING_CUSA03173.md" "dist/bloodborne-windows-x64/"
 
           # Archive
           Compress-Archive -Path "dist/bloodborne-windows-x64/*" -DestinationPath "dist/bloodborne-windows-x64.zip" -CompressionLevel Optimal

@@ -30,3 +30,4 @@ build/
 *.exe
 third_party/Vulkan-Headers/
 third_party/libvulkan-1.a
+*.spec
