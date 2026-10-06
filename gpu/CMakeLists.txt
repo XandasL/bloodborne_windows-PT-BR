@@ -218,9 +218,6 @@ if (NOT TARGET xbyak::xbyak)
     if (TARGET xbyak AND NOT TARGET xbyak::xbyak)
         add_library(xbyak::xbyak ALIAS xbyak)
     endif()
-    if (TARGET xbyak)
-        target_include_directories(xbyak INTERFACE ${xbyak_SOURCE_DIR})
-    endif()
 endif()
 
 find_program(GLSLANG_COMPILER NAMES glslang glslangValidator glslc REQUIRED)
@@ -311,7 +308,7 @@ target_compile_definitions(bbgpu PRIVATE IMGUI_IMPL_VULKAN_NO_PROTOTYPES
 set_source_files_properties(shim/bbport_overlay.cpp PROPERTIES
     OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fonts/DejaVuSans.ttf)
 target_include_directories(bbgpu BEFORE PUBLIC ${vulkanheaders_SOURCE_DIR}/include)
-target_include_directories(bbgpu PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/gcn/include third_party/half/include ${magic_enum_SOURCE_DIR}/include third_party/ffx-api/include ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_include_directories(bbgpu PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/gcn/include third_party/half/include ${magic_enum_SOURCE_DIR}/include third_party/ffx-api/include ${CMAKE_CURRENT_SOURCE_DIR}/.. ${xbyak_SOURCE_DIR})
 target_compile_definitions(bbgpu PRIVATE BOOST_ASIO_STANDALONE NDEBUG)
 if (MSVC)
     target_compile_options(bbgpu PRIVATE /W0)
