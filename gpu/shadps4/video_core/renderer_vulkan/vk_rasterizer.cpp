@@ -228,7 +228,8 @@ void Rasterizer::PrepareRenderState(const GraphicsPipeline* pipeline) {
     const bool skip_cb_binding =
         regs.color_control.mode == AmdGpu::ColorControl::OperationMode::Disable;
     for (s32 cb = 0; cb < std::bit_width(key.mrt_mask); ++cb) {
-        auto& [image_id, desc] = cb_descs[cb];
+        auto& image_id = cb_descs[cb].first;
+        auto& desc = cb_descs[cb].second;
         const auto& col_buf = regs.color_buffers[cb];
         const u32 target_mask = regs.color_target_mask.GetMask(cb);
         if (skip_cb_binding || !col_buf || !target_mask || (key.mrt_mask & (1 << cb)) == 0) {
