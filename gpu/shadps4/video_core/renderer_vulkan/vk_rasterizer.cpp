@@ -248,7 +248,8 @@ void Rasterizer::PrepareRenderState(const GraphicsPipeline* pipeline) {
         (regs.depth_control.stencil_enable && regs.depth_buffer.StencilValid())) {
         const auto htile_address = regs.depth_htile_data_base.GetAddress();
         const auto& hint = DbExtent();
-        auto& [image_id, desc] = db_desc;
+        auto& image_id = db_desc.first;
+        auto& desc = db_desc.second;
         const u32 tag = 2;
         image_id = bound_images.emplace_back(FindTargetMemoized(
             desc, last_targets[AmdGpu::NUM_COLOR_BUFFERS],
@@ -1008,8 +1009,9 @@ void Rasterizer::DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw
     push_data.yoffset *= target_scale[1];
     if (motion_draw && motion_geometry) {
         const auto& vs = pipeline->GetStage(Shader::SwStage::Vertex);
-        const auto [base_vertex, first_instance] =
-            GetDrawOffsets(regs, vs, pipeline->GetFetchShader());
+        const auto draw_offsets = GetDrawOffsets(regs, vs, pipeline->GetFetchShader());
+        const u32 base_vertex = draw_offsets.first;
+        const u32 first_instance = draw_offsets.second;
         const u32 index_size =
             regs.index_buffer_type.index_type == AmdGpu::IndexType::Index16 ? 2u : 4u;
         const VAddr index_address = is_indexed
