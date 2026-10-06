@@ -157,11 +157,11 @@ extern "C" void bbgpu_dump_guest_writes(void* ucontext) {
     int shown = 0;
     for (std::uint64_t i = n; i-- > (n > Size ? n - Size : 0) && shown < 64;) {
         const Entry& e = ring[i % Size];
-        bool near = false;
+        bool nearby = false;
         for (const auto r : regs) {
-            near |= r + 0x1000 > e.address && r < e.address + e.size + 0x1000;
+            nearby |= r + 0x1000 > e.address && r < e.address + e.size + 0x1000;
         }
-        if (near) {
+        if (nearby) {
             print(e, "near");
             ++shown;
         }
