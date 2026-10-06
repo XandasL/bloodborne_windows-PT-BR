@@ -72,12 +72,12 @@ ImageInfo::ImageInfo(const AmdGpu::ColorBuffer& buffer, AmdGpu::CbDbExtent hint)
     guest_address = buffer.Address();
     if (props.is_tiled) {
         guest_size = buffer.GetColorSliceSize() * resources.layers;
-        mips_layout[0] = MipInfo(guest_size, pitch, buffer.Height(), 0);
+        mips_layout[0] = MipInfo{guest_size, pitch, buffer.Height(), 0};
     } else {
         std::tie(std::ignore, std::ignore, guest_size) =
             ImageSizeLinearAligned(pitch, size.height, num_bits, num_samples);
         guest_size *= resources.layers;
-        mips_layout[0] = MipInfo(guest_size, pitch, size.height, 0);
+        mips_layout[0] = MipInfo{guest_size, pitch, size.height, 0};
     }
     alt_tile = Libraries::Kernel::sceKernelIsNeoMode() && buffer.info.alt_tile_mode;
 }
@@ -106,12 +106,12 @@ ImageInfo::ImageInfo(const AmdGpu::DepthBuffer& buffer, u32 num_slices, VAddr ht
     guest_address = write_buffer ? buffer.DepthWriteAddress() : buffer.DepthAddress();
     if (props.is_tiled) {
         guest_size = buffer.GetDepthSliceSize() * resources.layers;
-        mips_layout[0] = MipInfo(guest_size, pitch, buffer.Height(), 0);
+        mips_layout[0] = MipInfo{guest_size, pitch, buffer.Height(), 0};
     } else {
         std::tie(std::ignore, std::ignore, guest_size) =
             ImageSizeLinearAligned(pitch, size.height, num_bits, num_samples);
         guest_size *= resources.layers;
-        mips_layout[0] = MipInfo(guest_size, pitch, size.height, 0);
+        mips_layout[0] = MipInfo{guest_size, pitch, size.height, 0};
     }
 }
 

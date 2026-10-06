@@ -76,10 +76,12 @@ struct ImageInfo {
     AmdGpu::TileMode tile_mode = AmdGpu::TileMode::DisplayLinearAligned;
     AmdGpu::ArrayMode array_mode = AmdGpu::ArrayMode::ArrayLinearAligned;
     struct MipInfo {
-        u32 size;
-        u32 pitch;
-        u32 height;
-        u32 offset;
+        u32 size{};
+        u32 pitch{};
+        u32 height{};
+        u32 offset{};
+        MipInfo() = default;
+        MipInfo(u32 s, u32 p, u32 h, u32 o) : size(s), pitch(p), height(h), offset(o) {}
     };
     std::array<MipInfo, 16> mips_layout;
     VAddr guest_address{};
