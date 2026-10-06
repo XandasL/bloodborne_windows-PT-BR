@@ -11,7 +11,8 @@ This document tracks the phased empirical verification of `bloodborne_windows` o
 - [x] **Unified Memory Pool Struct:** Structure divergence between `mem_direct.c` and `mem_alias.c` resolved via [`src/platform/memory/windows/mem_internal.h`](../src/platform/memory/windows/mem_internal.h).
 - [x] **Portable Atomics:** Compiler-specific builtins replaced with portable CAS (`bb_atomic_cas_ptr`) in [`src/include/bb_common.h`](../src/include/bb_common.h). Verified under multi-threaded concurrency.
 - [x] **CMake Windows Portability:** Removed unconditional `pkg_check_modules` calls from [`gpu/CMakeLists.txt`](../gpu/CMakeLists.txt).
-- [ ] Full CMake project link (`bbgpu.dll` & `bb-probe.exe`).
+- [x] **Full CMake Project Link & Artifact Packaging:** Cleanly compiled and linked `bb-probe.exe` and `bbgpu` on Windows (MSVC/clang-cl) and Linux (Clang 16).
+- [x] **Standalone Graphical Launcher:** Built and released portable `BloodborneLauncher.exe` with auto-discovery, mod manager, and graphics configuration.
 
 ---
 
