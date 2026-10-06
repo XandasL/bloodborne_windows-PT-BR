@@ -346,8 +346,12 @@ public:
     };
 
     struct BufferDefinition {
-        u32 binding;
-        BufferType buffer_type;
+        BufferDefinition() = default;
+        BufferDefinition(u32 binding_, BufferType buffer_type_)
+            : binding(binding_), buffer_type(buffer_type_) {}
+
+        u32 binding{};
+        BufferType buffer_type{};
         std::array<Id, u32(PointerSize::NumClass)> offsets;
         std::array<BufferSpv, u32(PointerType::NumAlias)> aliases;
 
