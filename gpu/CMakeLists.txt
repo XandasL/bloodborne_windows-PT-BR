@@ -210,6 +210,19 @@ if (NOT TARGET Zydis::Zydis)
     endif()
 endif()
 
+# 7. xbyak
+find_package(xbyak QUIET)
+if (NOT TARGET xbyak::xbyak)
+    FetchContent_Declare(xbyak GIT_REPOSITORY https://github.com/herumi/xbyak.git GIT_TAG v7.21)
+    FetchContent_MakeAvailable(xbyak)
+    if (TARGET xbyak AND NOT TARGET xbyak::xbyak)
+        add_library(xbyak::xbyak ALIAS xbyak)
+    endif()
+    if (TARGET xbyak)
+        target_include_directories(xbyak INTERFACE ${xbyak_SOURCE_DIR})
+    endif()
+endif()
+
 find_program(GLSLANG_COMPILER NAMES glslang glslangValidator glslc REQUIRED)
 
 set(SIRIT_USE_SYSTEM_SPIRV_HEADERS OFF CACHE BOOL "" FORCE)
@@ -310,7 +323,7 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 target_link_libraries(bbgpu PRIVATE ffx-vulkan::portable ffx-vulkan::fsr4-v07-vulkan)
 target_link_libraries(bbgpu PUBLIC Vulkan::Headers fmt::fmt Boost::headers magic_enum::magic_enum
-    tsl::robin_map GPUOpen::VulkanMemoryAllocator PkgConfig::XXHASH PkgConfig::SDL3 miniz::miniz Zydis::Zydis sirit)
+    tsl::robin_map GPUOpen::VulkanMemoryAllocator PkgConfig::XXHASH PkgConfig::SDL3 miniz::miniz Zydis::Zydis xbyak::xbyak sirit)
 if (UNIX AND NOT APPLE)
     target_link_libraries(bbgpu PUBLIC PkgConfig::X11 PkgConfig::FFMPEG)
 endif()

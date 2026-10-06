@@ -844,7 +844,7 @@ void TextureCache::RefreshImage(Image& image) {
         copy.bufferOffset += offset;
     }
 
-    runtime.UploadImage(&image, buffer, image_copies);
+    runtime.UploadImage(&image, buffer, std::span{image_copies.data(), image_copies.size()});
 }
 
 vk::Sampler TextureCache::GetSampler(const AmdGpu::Sampler& sampler,
