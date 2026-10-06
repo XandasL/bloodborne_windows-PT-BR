@@ -1,8 +1,8 @@
 <#
 .SYNOPSIS
-    Bloodborne Windows Native Runner Script (PowerShell)
+    Bloodborne HLE Recompiler & Translation Runner Script (PowerShell)
 .DESCRIPTION
-    Prepares the decrypted PS4 CUSA03173 Bloodborne assets and launches bb-probe.exe natively.
+    Prepares decrypted PS4 Bloodborne assets (CUSA00900, CUSA03173, etc.) and launches bb-probe.
 #>
 
 [CmdletBinding()]
@@ -30,12 +30,18 @@ $outDir = Join-Path $DataDir "out"
 if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir | Out-Null }
 
 if ([string]::IsNullOrWhiteSpace($GameDir)) {
-    if (Test-Path "$PSScriptRoot\..\CUSA03173\eboot.bin") {
-        $GameDir = (Resolve-Path "$PSScriptRoot\..\CUSA03173").Path
-    } elseif (Test-Path "$PSScriptRoot\CUSA03173\eboot.bin") {
-        $GameDir = (Resolve-Path "$PSScriptRoot\CUSA03173").Path
-    } else {
-        Write-Error "No eboot.bin found. Please specify -GameDir <path-to-CUSA03173> or set BB_GAME_DIR."
+    $cusaCandidates = @("CUSA00900", "CUSA03173", "CUSA00207", "CUSA00208", "CUSA03023", "CUSA01363", "CUSA00299", "CUSA03014")
+    foreach ($cand in $cusaCandidates) {
+        if (Test-Path "$PSScriptRoot\..\$cand\eboot.bin") {
+            $GameDir = (Resolve-Path "$PSScriptRoot\..\$cand").Path
+            break
+        } elseif (Test-Path "$PSScriptRoot\$cand\eboot.bin") {
+            $GameDir = (Resolve-Path "$PSScriptRoot\$cand").Path
+            break
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($GameDir)) {
+        Write-Error "No eboot.bin found. Please specify -GameDir <path-to-CUSA00900-or-CUSA03173> or set BB_GAME_DIR."
     }
 }
 

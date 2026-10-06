@@ -9,12 +9,14 @@ if not exist "%OUT_DIR%" mkdir "%OUT_DIR%"
 
 if not defined BB_CONFIG set "BB_CONFIG=%DATA_DIR%bbport.ini"
 if not defined BB_GAME_DIR (
-    if exist "%~dp0..\CUSA03173\eboot.bin" (
-        set "BB_GAME_DIR=%~dp0..\CUSA03173"
-    ) else if exist "%~dp0CUSA03173\eboot.bin" (
-        set "BB_GAME_DIR=%~dp0CUSA03173"
-    ) else (
-        echo [ERROR] No eboot.bin found. Please set BB_GAME_DIR to your game directory.
+    for %%C in (CUSA00900 CUSA03173 CUSA00207 CUSA00208 CUSA03023 CUSA01363) do (
+        if not defined BB_GAME_DIR (
+            if exist "%~dp0..\%%C\eboot.bin" set "BB_GAME_DIR=%~dp0..\%%C"
+            if exist "%~dp0%%C\eboot.bin" set "BB_GAME_DIR=%~dp0%%C"
+        )
+    )
+    if not defined BB_GAME_DIR (
+        echo [ERROR] No eboot.bin found. Please set BB_GAME_DIR to your game directory (e.g. CUSA00900 or CUSA03173).
         pause
         exit /b 1
     )

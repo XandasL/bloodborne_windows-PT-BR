@@ -1,4 +1,4 @@
-# bloodborne_windows — High-Performance Native Windows & Linux Runtime for Bloodborne (PS4 CUSA03173)
+# bloodborne_windows — High-Performance HLE Recompiler & Translation Runtime for Bloodborne (PS4 CUSA00900 / CUSA03173)
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-141414?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/GuruMachanica/bloodborne_windows)
 [![Vulkan](https://img.shields.io/badge/Vulkan-1.3+-141414?style=for-the-badge&logo=vulkan&logoColor=white)](https://www.vulkan.org/)
@@ -8,19 +8,19 @@
 [![License: GPL v2+](https://img.shields.io/badge/License-GPLv2%2B-141414?style=for-the-badge&logo=gnu&logoColor=white)](LICENSE)
 [![CI / CD Build](https://github.com/GuruMachanica/bloodborne_windows/actions/workflows/build-and-release.yml/badge.svg)](https://github.com/GuruMachanica/bloodborne_windows/actions/workflows/build-and-release.yml)
 
-**bloodborne_windows** is an edge-native, zero-CPU-emulation runner and modular high-performance HLE runtime for **Bloodborne** (PlayStation 4, CUSA03173, version 1.09) executing natively on 64-bit **Windows** and **Linux**. By decoupling operating system kernel and memory primitives into a strict single-responsibility modular architecture ($\le 75$ LOC per file), mapping the decrypted PS4 ELF image directly into host virtual memory below the 40-bit (< 1 TiB) address ceiling, and using AMD64 SysV ABI transitions with hardware Vectored Exception Handling (VEH) and page-file section aliasing, `bloodborne_windows` delivers native game execution speeds with **zero instruction-set emulation overhead**.
+**bloodborne_windows** is an edge-native, zero-CPU-emulation HLE recompiler and modular translation runtime for **Bloodborne** (PlayStation 4, CUSA00900 / CUSA03173, version 1.09) executing on 64-bit **Windows** and **Linux**. By decoupling operating system kernel and memory primitives into a strict single-responsibility modular architecture ($\le 75$ LOC per file), mapping the decrypted PS4 ELF image directly into host virtual memory below the 40-bit (< 1 TiB) address ceiling, and using AMD64 SysV ABI transitions with hardware Vectored Exception Handling (VEH) and page-file section aliasing, `bloodborne_windows` executes guest x86-64 machine code directly without instruction-set emulation.
 
 * **Repository:** [https://github.com/GuruMachanica/bloodborne_windows](https://github.com/GuruMachanica/bloodborne_windows)
 * **Fork Origin & Upstream Attribution:** [https://github.com/deadinside28/bloodborne_pc](https://github.com/deadinside28/bloodborne_pc)
 * **Status:** In Active Porting & Validation
 
-> [!IMPORTANT]
-> **Fork Origin & Heritage Attribution:**
-> This repository is an extensive refactor and cross-platform port of the original Linux project [**deadinside28/bloodborne_pc**](https://github.com/deadinside28/bloodborne_pc).
-> The upstream codebase established proof-of-concept eboot loading under Linux. This fork completely re-architects the runtime into decoupled, platform-agnostic subsystems, implements native Windows Win32/VEH/Memory primitives, enforces a strict $\le 75$ LOC per file single-responsibility design, eliminates all platform `#ifdef` pollution from HLE logic, and introduces an automated offline preparation pipeline.
+> [!NOTE]
+> **Architecture & Nature of This Project:**  
+> This project is a **High-Level Emulation (HLE) Recompiler & Translation Runtime** (conceptually similar to Wine/Proton and shadPS4), **NOT** an official native source code port compiled from FromSoftware proprietary source code.  
+> Direct execution is achieved because both the PS4 and modern PC hardware share the AMD64 architecture, while OS system calls and Vulkan GPU commands are handled through real-time host translation gates.
 
 > [!NOTE]
-> **No copyrighted game assets, decryption keys, or binaries are included.** You must supply your own legally acquired, decrypted copy of *Bloodborne* (PS4 CUSA03173, v1.09). This project is independent and not affiliated with Sony Interactive Entertainment, FromSoftware, or AMD.
+> **No copyrighted game assets, decryption keys, or binaries are included.** You must supply your own legally acquired, decrypted copy of *Bloodborne* (PS4 CUSA00900 or CUSA03173, v1.09). This project is independent and not affiliated with Sony Interactive Entertainment, FromSoftware, or AMD.
 
 ---
 

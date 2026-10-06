@@ -36,9 +36,17 @@ if [[ -z ${PYTHON:-} ]]; then
     fi
 fi
 if [[ -z ${PYTHON:-} ]]; then echo 'Install Python 3 or set PYTHON.' >&2; exit 1; fi
-# BB_GAME_DIR: the game's folder (eboot.bin, sce_module, ...); default next to this directory.
-game=${BB_GAME_DIR:-../CUSA03173}
-if [[ ! -f $game/eboot.bin ]]; then echo "No eboot.bin in $game (set BB_GAME_DIR)." >&2; exit 1; fi
+game=${BB_GAME_DIR:-}
+if [[ -z $game ]]; then
+    for cusa in CUSA00900 CUSA03173 CUSA00207 CUSA00208 CUSA03023 CUSA01363; do
+        if [[ -f "../$cusa/eboot.bin" ]]; then game="../$cusa"; break; fi
+        if [[ -f "$cusa/eboot.bin" ]]; then game="$cusa"; break; fi
+    done
+fi
+if [[ -z $game || ! -f $game/eboot.bin ]]; then
+    echo "No eboot.bin found. Please set BB_GAME_DIR to your game directory (e.g. CUSA00900 or CUSA03173)." >&2
+    exit 1
+fi
 original_game=$game
 game=$("$PYTHON" scripts/mods.py "$game" --out "$out" \
     --mods-dir "${BB_MODS_DIR:-$data/mods}" --config "${BB_MODS_CONFIG:-$data/mods.json}" \
