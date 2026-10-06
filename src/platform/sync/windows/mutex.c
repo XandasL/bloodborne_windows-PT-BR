@@ -55,10 +55,17 @@ int32_t bb_platform_mutex_unlock(BbMutex* m) {
     return 0;
 }
 
-void bb_platform_mutex_destroy(BbMutex* m) {
-    if (m) {
-        DeleteCriticalSection(&m->cs);
-        free(m);
+int32_t bb_platform_mutex_timedlock(BbMutex* m, uint64_t timeout_us) {
+    if (!m) return BB_ORBIS_ERROR(22);
+    DWORD start = GetTickCount(), timeout_ms = (DWORD)(timeout_us / 1000);
+    while (bb_platform_mutex_trylock(m) != 0) {
+        if (GetTickCount() - start >= timeout_ms) return BB_ORBIS_ERROR(60);
+        Sleep(1);
     }
+    return 0;
+}
+
+void bb_platform_mutex_destroy(BbMutex* m) {
+    if (m) { DeleteCriticalSection(&m->cs); free(m); }
 }
 #endif

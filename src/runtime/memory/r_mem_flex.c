@@ -4,6 +4,8 @@
  */
 #include "r_mem_types.h"
 
+uint64_t g_mem_flex_bytes = 0;
+size_t g_mem_flex_maps = 0;
 int32_t r_mem_unmap_locked(uintptr_t start, uint64_t size);
 
 int32_t r_mem_map_flex_locked(void **inout, uint64_t size, int prot, int flags) {

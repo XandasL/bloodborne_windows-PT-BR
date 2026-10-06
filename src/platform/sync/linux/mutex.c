@@ -49,6 +49,17 @@ int32_t bb_platform_mutex_unlock(BbMutex* m) {
     return e ? BB_ORBIS_ERROR(e == EPERM ? 1 : 22) : 0;
 }
 
+int32_t bb_platform_mutex_timedlock(BbMutex* m, uint64_t timeout_us) {
+    if (!m) return BB_ORBIS_ERROR(22);
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += timeout_us / 1000000;
+    ts.tv_nsec += (timeout_us % 1000000) * 1000;
+    if (ts.tv_nsec >= 1000000000) { ts.tv_sec++; ts.tv_nsec -= 1000000000; }
+    int e = pthread_mutex_timedlock(&m->handle, &ts);
+    return e ? BB_ORBIS_ERROR(e == ETIMEDOUT ? 60 : 22) : 0;
+}
+
 void bb_platform_mutex_destroy(BbMutex* m) {
     if (m) {
         pthread_mutex_destroy(&m->handle);

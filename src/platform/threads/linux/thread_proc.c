@@ -9,6 +9,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+void bb_platform_thread_set_name(BbThread* thread, const char* name) {
+    (void)thread;
+    (void)name;
+}
+
 void bb_platform_process_restart(void) {
 #ifdef SYS_close_range
     syscall(SYS_close_range, 3u, ~0u, 0u);

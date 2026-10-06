@@ -8,6 +8,16 @@
 #include <process.h>
 #include <stdlib.h>
 
+struct BbThread { HANDLE handle; };
+
+void bb_platform_thread_set_name(BbThread* thread, const char* name) {
+    if (thread && thread->handle && name) {
+        wchar_t wname[64];
+        MultiByteToWideChar(CP_UTF8, 0, name, -1, wname, 64);
+        SetThreadDescription(thread->handle, wname);
+    }
+}
+
 void bb_platform_process_restart(void) {
     char exe[MAX_PATH];
     if (GetModuleFileNameA(NULL, exe, MAX_PATH) > 0) {
