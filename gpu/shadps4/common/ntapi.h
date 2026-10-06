@@ -509,11 +509,8 @@ typedef struct _TEB {                             /* win32/win64 */
 static_assert(offsetof(TEB, DeallocationStack) ==
               0x1478); /* The only member we care about at the moment */
 
-typedef enum _QUEUE_USER_APC_FLAGS {
-    QueueUserApcFlagsNone,
-    QueueUserApcFlagsSpecialUserApc,
-    QueueUserApcFlagsMaxValue
-} QUEUE_USER_APC_FLAGS;
+// Note: QUEUE_USER_APC_FLAGS is provided by Windows SDK processthreadsapi.h (10.0.26100+)
+// and is not referenced in the video core.
 
 typedef union _USER_APC_OPTION {
     ULONG_PTR UserApcFlags;
