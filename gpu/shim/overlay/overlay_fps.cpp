@@ -27,8 +27,4 @@ bool Visible() {
     return initialized && (menu_open || BbSettings::Get().show_fps);
 }
 
-bool CapturesInput() {
-    return menu_open;
-}
-
 } // namespace BbOverlay

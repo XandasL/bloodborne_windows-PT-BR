@@ -120,6 +120,18 @@ jobs:
           
           # Copy binaries
           Copy-Item "build/bb-probe.exe" "dist/bloodborne-windows-x64/"
+
+          # bb-probe links against the shared SDL3 runtime on Windows. CMake fetches
+          # SDL 3.2.8 into the build tree when no system SDL3 package is available,
+          # so the release archive must carry the resulting DLL beside bb-probe.exe.
+          $sdlDll = Get-ChildItem -Path "build" -Filter "SDL3.dll" -File -Recurse -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+          if (-not $sdlDll) {
+            throw "SDL3.dll was not found in the Windows build tree; refusing to publish an incomplete package."
+          }
+          Copy-Item $sdlDll.FullName "dist/bloodborne-windows-x64/SDL3.dll"
+          Write-Host "Packaged SDL3 runtime from $($sdlDll.FullName)"
+
           if (Test-Path "dist/BloodborneLauncher.exe") {
             Copy-Item "dist/BloodborneLauncher.exe" "dist/bloodborne-windows-x64/"
           }

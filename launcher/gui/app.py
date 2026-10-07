@@ -2,6 +2,7 @@
 """BloodborneLauncherApp main application window class."""
 
 import tkinter as tk
+from bbport_i18n import tr
 from .paths import find_game_dir
 from .styles import setup_theme_styles
 from .ui_layout import assemble_ui_components
@@ -12,7 +13,7 @@ from .actions import run_smoke_test_action, launch_game_action
 class BloodborneLauncherApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Bloodborne Runner Launcher & Mod Manager")
+        self.title(tr("Bloodborne Runner Launcher & Mod Manager"))
         self.geometry("820x680")
         self.minsize(740, 580)
         self.configure(bg="#18181b")

@@ -3,6 +3,7 @@
 
 import tkinter as tk
 from tkinter import ttk
+from bbport_i18n import tr
 
 
 def build_mods_view(parent, app):
@@ -13,14 +14,14 @@ def build_mods_view(parent, app):
     top_bar = ttk.Frame(card, style="Card.TFrame")
     top_bar.pack(fill="x", pady=(0, 8))
 
-    ttk.Label(top_bar, text="INSTALLED MODS", style="Card.TLabel",
+    ttk.Label(top_bar, text=tr("INSTALLED MODS"), style="Card.TLabel",
               font=("Segoe UI", 10, "bold"), foreground="#ef4444").pack(side="left")
 
-    ttk.Button(top_bar, text="➕ Add Mod (.zip)", style="Secondary.TButton",
+    ttk.Button(top_bar, text="➕ " + tr("Add Mod (.zip)"), style="Secondary.TButton",
                command=app.add_mod).pack(side="right", padx=(4, 0))
-    ttk.Button(top_bar, text="📂 Open Folder", style="Secondary.TButton",
+    ttk.Button(top_bar, text="📂 " + tr("Open Folder"), style="Secondary.TButton",
                command=app.open_mods_dir).pack(side="right", padx=(4, 0))
-    ttk.Button(top_bar, text="🔄 Refresh", style="Secondary.TButton",
+    ttk.Button(top_bar, text="🔄 " + tr("Refresh"), style="Secondary.TButton",
                command=app.load_mods).pack(side="right")
 
     list_frame = ttk.Frame(card, style="Card.TFrame")
