@@ -6,13 +6,14 @@ import subprocess
 import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+from bbport_i18n import tr
 from .paths import MODS_DIR, MODS_CONFIG
 from .sfo import verify_game_dump
 from .mods_manager import list_installed_mods, get_disabled_mods, save_mods_state, extract_mod_archive
 
 
 def on_browse_game_dir(app):
-    p = filedialog.askdirectory(title="Select Bloodborne Game Directory")
+    p = filedialog.askdirectory(title=tr("Select Bloodborne Game Directory"))
     if p:
         app.game_dir_var.set(p)
         on_refresh_game_info(app)
@@ -42,14 +43,14 @@ def on_load_mods(app):
 
 
 def on_add_mod(app):
-    p = filedialog.askopenfilename(filetypes=[("Mod Archives", "*.zip")])
+    p = filedialog.askopenfilename(filetypes=[(tr("Mod Archives"), "*.zip")])
     if p:
         try:
             name = extract_mod_archive(p, MODS_DIR)
-            messagebox.showinfo("Success", f"Installed mod: {name}")
+            messagebox.showinfo(tr("Success"), tr("Installed mod: {name}").format(name=name))
             on_load_mods(app)
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            messagebox.showerror(tr("Error"), str(e))
 
 
 def on_open_mods_dir():

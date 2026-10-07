@@ -4,6 +4,7 @@
 import json
 from pathlib import Path
 import zipfile
+from bbport_i18n import tr
 
 
 def get_disabled_mods(config_file):
@@ -31,7 +32,7 @@ def extract_mod_archive(archive_path, target_mods_dir):
     """Extract a mod zip package into the mods directory."""
     src = Path(archive_path).resolve()
     if src.suffix.lower() != ".zip":
-        raise ValueError("Only .zip mod archives are supported.")
+        raise ValueError(tr("Only .zip mod archives are supported."))
     mod_dir = Path(target_mods_dir) / src.stem
     mod_dir.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(src, "r") as zf:
