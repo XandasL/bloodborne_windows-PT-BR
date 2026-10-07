@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "overlay_internal.h"
-#include "video_core/vulkan_common/vulkan_wrapper.h"
+#include <algorithm>
+#include <cmath>
 #include "video_core/renderer_vulkan/vk_scheduler.h"
 #include "imgui_impl_vulkan.h"
 

@@ -2,7 +2,11 @@
 #include "overlay_internal.h"
 #include "overlay_font.h"
 #include "imgui_impl_vulkan.h"
-#include <SDL3/SDL.h>
+#include "video_core/renderer_vulkan/vk_instance.h"
+
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
 
 namespace BbOverlay {
 
@@ -24,9 +28,7 @@ void SetOpen(bool value) {
     }
 }
 
-void Init(VkInstance instance, VkPhysicalDevice phys, VkDevice dev,
-          uint32_t queue_family, VkQueue queue, VkDescriptorPool pool,
-          VkRenderPass rp, uint32_t image_count, float scale) {
+void Init(const Vulkan::Instance& instance, vk::Format format, u32 image_count) {
     std::scoped_lock lock{imgui_mutex};
     if (initialized) return;
 
@@ -34,28 +36,56 @@ void Init(VkInstance instance, VkPhysicalDevice phys, VkDevice dev,
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;
-    base_scale = scale > 0.0f ? scale : 1.0f;
-    io.FontGlobalScale = 1.0f;
-
-    ImFontConfig cfg;
-    cfg.FontDataOwnedByAtlas = false;
-    const ImWchar ranges[] = {0x0020, 0x00FF, 0x0400, 0x04FF, 0};
-    const float size = std::round(16.0f * base_scale);
-    io.Fonts->AddFontFromMemoryTTF(
-        const_cast<unsigned char*>(bb_font_ttf),
-        int(bb_font_ttf_end - bb_font_ttf), size, &cfg, ranges);
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
+    io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
+    io.BackendPlatformName = "bbport";
 
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
-    style.ScaleAllSizes(base_scale);
+    style.WindowRounding = 6.0f;
+    style.FrameRounding = 4.0f;
+    style.GrabRounding = 4.0f;
+    style.Colors[ImGuiCol_WindowBg].w = 0.92f;
 
+    ImFontConfig font_config;
+    font_config.FontDataOwnedByAtlas = false;
+    io.Fonts->AddFontFromMemoryTTF(
+        const_cast<unsigned char*>(bb_font_ttf),
+        int(bb_font_ttf_end - bb_font_ttf), 18.0f, &font_config);
+
+    const vk::Instance vk_instance = instance.GetInstance();
+    ImGui_ImplVulkan_LoadFunctions(
+        instance.ApiVersion(),
+        [](const char* name, void* user) {
+            return VULKAN_HPP_DEFAULT_DISPATCHER.vkGetInstanceProcAddr(
+                *static_cast<const vk::Instance*>(user), name);
+        },
+        const_cast<vk::Instance*>(&vk_instance));
+
+    const VkFormat color_format = static_cast<VkFormat>(format);
     ImGui_ImplVulkan_InitInfo info{};
-    info.Instance = instance; info.PhysicalDevice = phys; info.Device = dev;
-    info.QueueFamily = queue_family; info.Queue = queue; info.DescriptorPool = pool;
-    info.RenderPass = rp; info.MinImageCount = image_count;
-    info.ImageCount = image_count; info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-    ImGui_ImplVulkan_Init(&info);
+    info.ApiVersion = instance.ApiVersion();
+    info.Instance = vk_instance;
+    info.PhysicalDevice = instance.GetPhysicalDevice();
+    info.Device = instance.GetDevice();
+    info.QueueFamily = instance.GetGraphicsQueueFamilyIndex();
+    info.Queue = instance.GetGraphicsQueue();
+    info.DescriptorPoolSize = 16;
+    info.MinImageCount = std::max(image_count, 2u);
+    info.ImageCount = std::max(image_count, 2u);
+    info.UseDynamicRendering = true;
+    info.PipelineInfoMain.PipelineRenderingCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+        .colorAttachmentCount = 1,
+        .pColorAttachmentFormats = &color_format,
+    };
+    if (!ImGui_ImplVulkan_Init(&info)) {
+        std::printf("Overlay: ImGui Vulkan backend init failed\n");
+        ImGui::DestroyContext();
+        return;
+    }
     initialized = true;
+    std::printf("Overlay: menu ready (Insert or L3+R3)\n");
 }
 
 } // namespace BbOverlay
