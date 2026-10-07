@@ -179,11 +179,10 @@ jobs:
           Copy-Item "RUNNING_CUSA03173.md" "dist/bloodborne-windows-x64/"
 
           # Archive
-          Compress-Archive -Path "dist/bloodborne-windows-x64/*" -DestinationPath "dist/bloodborne-windows-x64.zip" -CompressionLevel Optimal
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
           name: bloodborne-windows-x64
-          path: dist/bloodborne-windows-x64.zip
+          path: dist/bloodborne-windows-x64/
           retention-days: 14
