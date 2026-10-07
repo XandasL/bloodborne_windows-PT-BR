@@ -37,6 +37,12 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Validate Python launcher and Windows mod overlay
+        shell: pwsh
+        run: |
+          python -m compileall launcher scripts
+          python -m unittest discover -s tests -p "test_mods.py"
+
       - name: Install Vulkan SDK
         run: |
           choco install vulkan-sdk -y --no-progress
