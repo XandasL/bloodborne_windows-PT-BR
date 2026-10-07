@@ -15,10 +15,14 @@ struct Symbol {
 extern std::vector<Symbol> g_symbols;
 extern uint32_t g_sdk_version;
 
+namespace Core::Loader {
+class SymbolsResolver;
+}
+
 namespace Libraries::Kernel {
 void StartKernelService();
-void RegisterEventQueue(void* sym);
+void RegisterEventQueue(Core::Loader::SymbolsResolver* sym);
 }
-namespace Libraries::GnmDriver { void RegisterLib(void* sym); }
-namespace Libraries::AvPlayer { void RegisterLib(void* sym); }
-namespace Libraries::VideoOut { void RegisterLib(void* sym); }
+namespace Libraries::GnmDriver { void RegisterLib(Core::Loader::SymbolsResolver* sym); }
+namespace Libraries::AvPlayer { void RegisterLib(Core::Loader::SymbolsResolver* sym); }
+namespace Libraries::VideoOut { void RegisterLib(Core::Loader::SymbolsResolver* sym); }
