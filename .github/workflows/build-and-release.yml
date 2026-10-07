@@ -117,7 +117,12 @@ jobs:
         shell: pwsh
         run: |
           pip install pyinstaller
-          python -m PyInstaller --onefile --windowed --name BloodborneLauncher --add-data "scripts;scripts" --add-data "patches;patches" launcher/bloodborne_gui.py
+          python -m PyInstaller --onefile --windowed --name BloodborneLauncher \
+            --add-data "scripts;scripts" --add-data "patches;patches" \
+            --collect-submodules xml \
+            --hidden-import prepare --hidden-import link_libc --hidden-import link_modules \
+            --hidden-import content_profile --hidden-import patches --hidden-import mod_manager \
+            launcher/bloodborne_gui.py
 
       - name: Package Windows Artifacts
         shell: pwsh
