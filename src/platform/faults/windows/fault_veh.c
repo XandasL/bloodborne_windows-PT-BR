@@ -22,6 +22,25 @@ static LONG WINAPI VectoredHandler(PEXCEPTION_POINTERS ep) {
             recovery_point = NULL;
             longjmp(*rec, 1);
         }
+#if defined(_M_X64) || defined(__x86_64__)
+        const ULONG_PTR access = ep->ExceptionRecord->ExceptionInformation[0];
+        const char* kind = access == 0 ? "read" : access == 1 ? "write" :
+                           access == 8 ? "execute" : "unknown";
+        fprintf(stderr,
+                "FATAL ACCESS VIOLATION: %s address=%p RIP=%p RSP=%p\n"
+                "REGS: RAX=%p RCX=%p RDX=%p RDI=%p RSI=%p R8=%p R9=%p\n",
+                kind, fault_addr,
+                (void*)(uintptr_t)ep->ContextRecord->Rip,
+                (void*)(uintptr_t)ep->ContextRecord->Rsp,
+                (void*)(uintptr_t)ep->ContextRecord->Rax,
+                (void*)(uintptr_t)ep->ContextRecord->Rcx,
+                (void*)(uintptr_t)ep->ContextRecord->Rdx,
+                (void*)(uintptr_t)ep->ContextRecord->Rdi,
+                (void*)(uintptr_t)ep->ContextRecord->Rsi,
+                (void*)(uintptr_t)ep->ContextRecord->R8,
+                (void*)(uintptr_t)ep->ContextRecord->R9);
+        fflush(stderr);
+#endif
     }
     return EXCEPTION_CONTINUE_SEARCH;
 }
