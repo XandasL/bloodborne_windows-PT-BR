@@ -48,6 +48,8 @@ int main(int argc, char **argv) {
         puts("BOOT: initialize Vulkan/GPU");
         loader_init_gpu(app0, user_dir, 0, 0);
     }
+    printf("Guest image base: %p; entry host address: %p\n",
+           (void*)g_loader_image, (void*)(g_loader_image + entry));
     printf("Entering original x86-64 code at guest offset 0x%" PRIx64 "\n", entry);
     struct { uint64_t argc; const char *argv[2]; } params = {1, {"/app0/eboot.bin", NULL}};
     enter_guest(g_loader_image + entry, &params, NULL);
