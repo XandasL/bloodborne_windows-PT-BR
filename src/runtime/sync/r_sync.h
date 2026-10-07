@@ -14,6 +14,12 @@
 extern "C" {
 #endif
 
+typedef struct GuestMutexAttr {
+    int type;
+    int protocol;
+} GuestMutexAttr;
+
+uintptr_t r_sync_mutex_attr_resolve(const char* name);
 uintptr_t r_sync_mutex_resolve(const char* name);
 uintptr_t r_sync_cond_resolve(const char* name);
 uintptr_t r_sync_rwlock_resolve(const char* name);
