@@ -154,6 +154,14 @@ jobs:
           if (Test-Path "C:\ffmpeg\bin") {
             Copy-Item "C:\ffmpeg\bin\*.dll" "dist/bloodborne-windows-x64/"
           }
+
+          # SDL3 is linked dynamically on Windows and must ship beside bb-probe.exe.
+          $sdl = Get-ChildItem -Path "build" -Recurse -Filter "SDL3.dll" -File |
+            Select-Object -First 1
+          if (-not $sdl) {
+            throw "SDL3.dll was not produced by the Windows build."
+          }
+          Copy-Item $sdl.FullName "dist/bloodborne-windows-x64/SDL3.dll"
           if (Test-Path "build/dlss_bridge/shadps4_dlss.dll") {
             Copy-Item "build/dlss_bridge/shadps4_dlss.dll" "dist/bloodborne-windows-x64/"
           }
