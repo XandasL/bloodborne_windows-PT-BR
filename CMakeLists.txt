@@ -73,7 +73,11 @@ endif()
 # Utility: bb-gpu-capabilities
 # -----------------------------------------------------------------------------
 if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/gpu_capabilities.c")
-    add_executable(bb-gpu-capabilities tools/gpu_capabilities.c)
+    add_executable(bb-gpu-capabilities
+        tools/gpu_capabilities.c
+        tools/gpu_capabilities/caps_device.c
+        tools/gpu_capabilities/caps_formats.c)
+    target_include_directories(bb-gpu-capabilities PRIVATE tools)
     if (WIN32)
         target_link_libraries(bb-gpu-capabilities PRIVATE Vulkan::Vulkan)
     else()

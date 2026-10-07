@@ -21,12 +21,13 @@ def host_nvidia(manifest_dirs, library_dirs):
         for manifest in sorted(directory.glob("*nvidia*.json")):
             try:
                 data = json.loads(manifest.read_text())
-                library = Path(data["ICD"]["library_path"])
+                raw_path = str(data["ICD"]["library_path"])
+                library = Path(raw_path)
             except (OSError, ValueError, KeyError, TypeError):
                 continue
             if "nvidia" not in library.name.lower():
                 continue
-            if library.is_absolute():
+            if library.is_absolute() or raw_path.startswith("/"):
                 candidates = [library, *(d / library.name for d in library_dirs)]
             elif len(library.parts) > 1:
                 candidates = [manifest.parent / library]

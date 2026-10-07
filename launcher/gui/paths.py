@@ -45,13 +45,23 @@ def find_game_dir():
 
 def find_probe_executable():
     """Locate the bb-probe engine binary."""
-    for cand in [
+    cur_exe = Path(sys.executable).resolve()
+    candidates = [
+        BASE_DIR / "bin" / "bb-probe.exe",
+        BASE_DIR / "bin" / "bb-probe",
+        BASE_DIR / "build" / "bb-probe.exe",
+        BASE_DIR / "build" / "bb-probe",
+        BASE_DIR / "out" / "bb-probe.exe",
+        BASE_DIR / "bbport.exe",
+        BASE_DIR / "Bloodborne.exe",
         BASE_DIR / "bb-probe.exe",
         BASE_DIR / "bb-probe",
-        BASE_DIR / "out" / "bb-probe.exe",
-        BASE_DIR / "build" / "bb-probe.exe",
-        BASE_DIR / "build" / "bb-probe"
-    ]:
+    ]
+    for cand in candidates:
         if cand.is_file():
-            return cand.resolve()
+            resolved = cand.resolve()
+            if getattr(sys, "frozen", False) and resolved == cur_exe:
+                continue
+            return resolved
     return None
+

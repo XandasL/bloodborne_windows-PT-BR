@@ -1,44 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Driver discovery at the AppImage's GTK/game entry point, without a GPU."""
-from paths import ROOT
-import importlib.util
+
 import json
 from pathlib import Path
-import tempfile
-import unittest
-
-spec = importlib.util.spec_from_file_location("bbport_vulkan", ROOT / "launcher/bbport_vulkan.py")
-vulkan = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(vulkan)
+from test_packaged_vulkan_helpers import BasePackagedVulkanTestCase, vulkan
 
 
-class PackagedVulkanTests(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name)
-        self.icds = self.root / "icds"
-        self.libs = self.root / "host-libs"
-        self.icds.mkdir()
-        self.libs.mkdir()
-        self.env = {"BB_DATA_DIR": str(self.root / "data"),
-                    "BB_BUNDLED_VK_DRIVER_FILES": "/bundled/radeon.json:/bundled/intel.json",
-                    "LD_LIBRARY_PATH": "/bundled/lib"}
-
-    def library(self, name, bits=64):
-        path = self.libs / name
-        path.write_bytes(b"\x7fELF" + bytes([2 if bits == 64 else 1, 1]) +
-                         b"\0" * 12 + b"\x3e\0")
-        return path
-
-    def manifest(self, library="libGLX_nvidia.so.0"):
-        path = self.icds / "nvidia_icd.json"
-        path.write_text(json.dumps({"file_format_version": "1.0.0", "ICD": {
-            "library_path": library, "api_version": "1.3.0"}}))
-        return path
-
-    def configure(self):
-        return vulkan.configure(self.env, (self.icds,), (self.libs,))
-
+class PackagedVulkanTests(BasePackagedVulkanTestCase):
     def test_amd_intel_keep_bundled_drivers(self):
         self.configure()
         self.assertEqual(self.env["VK_DRIVER_FILES"], self.env["BB_BUNDLED_VK_DRIVER_FILES"])
@@ -61,15 +29,14 @@ class PackagedVulkanTests(unittest.TestCase):
         self.library("libc.so.6")
         self.manifest()
         self.assertIn("host NVIDIA", self.configure())
-        driver_json = Path(self.env["VK_DRIVER_FILES"].split(":")[0])
+        driver_json = Path(self.env["VK_DRIVER_FILES"].split(":/bundled")[0])
         data = json.loads(driver_json.read_text())
         self.assertEqual(data["ICD"]["api_version"], "1.3.0")
         self.assertEqual(Path(data["ICD"]["library_path"]).resolve(), driver)
-        cache = Path(self.env["LD_LIBRARY_PATH"].split(":")[0])
+        cache = Path(self.env["LD_LIBRARY_PATH"].split(":/bundled")[0])
         self.assertEqual((cache / compiler.name).resolve(), compiler)
         self.assertFalse((cache / "libc.so.6").exists())
         self.assertTrue(self.env["VK_DRIVER_FILES"].endswith(":/bundled/radeon.json:/bundled/intel.json"))
-        # Repeated starts reuse valid links and do not accumulate per-launch caches.
         before = dict(self.env)
         self.env = {k: v for k, v in before.items() if k != "VK_DRIVER_FILES"}
         self.env["LD_LIBRARY_PATH"] = "/bundled/lib"

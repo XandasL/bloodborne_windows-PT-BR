@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Select Vulkan ICDs for the packaged port before starting GTK or game."""
-
-import hashlib
-import json
-import os
+import hashlib, json, os, sys
 from pathlib import Path
-import sys
 
 _cur = Path(__file__).resolve().parent
 if str(_cur) not in sys.path:
@@ -23,16 +19,16 @@ LIBRARY_DIRS = (
     Path("/run/opengl-driver/lib"),
 )
 
-
-def configure(env):
+def configure(env, manifest_dirs=MANIFEST_DIRS, library_dirs=LIBRARY_DIRS):
     if env.get("VK_DRIVER_FILES") or env.get("VK_ICD_FILENAMES"):
         return "Vulkan: using explicit driver override"
     bundled = env.get("BB_BUNDLED_VK_DRIVER_FILES", "")
     if env.get("VK_ADD_DRIVER_FILES"):
         bundled = env["VK_ADD_DRIVER_FILES"] + (":" + bundled if bundled else "")
     extra = env.get("BB_NVIDIA_LIB_DIR")
-    lib_dirs = (Path(extra), *LIBRARY_DIRS) if extra else LIBRARY_DIRS
-    found = host_nvidia(MANIFEST_DIRS, lib_dirs)
+    lib_dirs = (Path(extra), *library_dirs) if extra else library_dirs
+    found = host_nvidia(manifest_dirs, lib_dirs)
+
     if not found:
         if bundled:
             env["VK_DRIVER_FILES"] = bundled
@@ -40,8 +36,8 @@ def configure(env):
 
     data, driver = found
     key = hashlib.sha256(f"{driver}:{driver.stat().st_mtime_ns}".encode()).hexdigest()[:16]
-    data_dir = Path(env.get("BB_DATA_DIR") or str(Path(env.get("XDG_DATA_HOME", str(Path.home() / ".local/share"))) / "bbport"))
-    cache = data_dir / "vulkan" / "nvidia" / key
+    base_data = env.get("BB_DATA_DIR") or str(Path(env.get("XDG_DATA_HOME", str(Path.home() / ".local/share"))) / "bbport")
+    cache = Path(base_data) / "vulkan" / "nvidia" / key
     libraries = cache / "lib"
     libraries.mkdir(parents=True, exist_ok=True)
     sources = [driver]
@@ -60,7 +56,6 @@ def configure(env):
     env["LD_LIBRARY_PATH"] = str(libraries) + (":" + env["LD_LIBRARY_PATH"] if env.get("LD_LIBRARY_PATH") else "")
     return f"Vulkan: host NVIDIA driver {driver}; bundled AMD/Intel also available"
 
-
 def main():
     if len(sys.argv) < 2:
         return 1
@@ -70,7 +65,6 @@ def main():
         print(f"bbport: cannot prepare NVIDIA driver: {e}", file=sys.stderr)
         return 1
     os.execvpe(sys.argv[1], sys.argv[1:], os.environ)
-
 
 if __name__ == "__main__":
     sys.exit(main())
