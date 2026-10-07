@@ -47,6 +47,13 @@ void enter_guest(void *entry_point, void *params, void *exit_fn);
 void loader_configure_content(const char *path);
 void loader_configure_app(const char *app0, const char *user_dir);
 void loader_init_gpu(const char *app0, const char *user_dir, uint64_t sdk, uint32_t attributes);
+uint64_t loader_read_link_metadata(FILE *f, const char *magic, uint64_t size,
+                                   uint64_t main_tls[4], uint64_t *procparam);
+void loader_read_bindings(FILE *f, uint64_t count,
+                          uint64_t *bindings, uint64_t *binding_kinds);
+void loader_apply_relocations(Segment *segments, uint64_t ns, Reloc *relocs, uint64_t nr,
+                              unsigned char *traps, const uint64_t *bindings,
+                              const uint64_t *binding_kinds, int native_libc);
 int loader_load_boot(FILE *f, const char *magic, uint64_t *out_entry, const char *patch_file);
 int vulkan_smoke(void);
 
