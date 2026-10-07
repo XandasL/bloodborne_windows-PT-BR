@@ -25,10 +25,15 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--timeout") && i + 1 < argc) ++i;
         else { fprintf(stderr, "Unknown option: %s\n", argv[i]); return 1; }
     }
+    puts("BOOT: configure AppContent");
     loader_configure_content(content_profile);
+    puts("BOOT: configure app mounts");
     loader_configure_app(app0, user_dir);
+    puts("BOOT: register GPU kernel");
     bbgpu_register_kernel();
+    puts("BOOT: initialize fault handling");
     bb_platform_faults_init();
+    puts("BOOT: open prepared boot image");
     FILE *f = fopen(argv[1], "rb");
     if (!f) fail("cannot open boot file; run prepare.py first");
     char magic[8];
@@ -36,9 +41,13 @@ int main(int argc, char **argv) {
         memcmp(magic, "BBPROBE3", 8) && memcmp(magic, "BBPROBE4", 8) && memcmp(magic, "BBPROBE5", 8)))
         fail("bad boot file signature");
     uint64_t entry = 0;
+    puts("BOOT: load prepared image");
     loader_load_boot(f, magic, &entry, patch_file);
     fclose(f);
-    if (!cpu_only) loader_init_gpu(app0, user_dir, 0, 0);
+    if (!cpu_only) {
+        puts("BOOT: initialize Vulkan/GPU");
+        loader_init_gpu(app0, user_dir, 0, 0);
+    }
     printf("Entering original x86-64 code at guest offset 0x%" PRIx64 "\n", entry);
     struct { uint64_t argc; const char *argv[2]; } params = {1, {"/app0/eboot.bin", NULL}};
     enter_guest(g_loader_image + entry, &params, NULL);
