@@ -44,6 +44,19 @@ jobs:
             mingw-w64-clang-x86_64-spirv-headers
             mingw-w64-clang-x86_64-spirv-cross
 
+      - name: Validate GPU monitor script syntax
+        shell: powershell
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          $path = (Resolve-Path tools/monitor-gpu.ps1).Path
+          [void][System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$parseErrors)
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+          Write-Host "GPU monitor parses in Windows PowerShell 5.1"
+
       - name: Build
         shell: msys2 {0}
         run: bash build.sh
