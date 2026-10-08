@@ -289,6 +289,9 @@ def game_environment(s):
     env['BB_PATCHES_DIR'] = s['patches_dir'] or str(DATA_DIR / 'patches')
     env['BB_PATCHES_CONFIG'] = str(DATA_DIR / 'patches.json')
     env['BB_LANGUAGE'] = s['language']
+    # Keep the in-game L3+R3 menu in sync with the launcher's chosen language.
+    # Empty means "system"; the Windows-native overlay detects that locale itself.
+    env['BB_UI_LANGUAGE'] = s.get('ui_language', '') or ''
     if str(s['player_name']).strip():
         env['BB_USER_NAME'] = str(s['player_name']).strip()
     env['BB_FULLSCREEN'] = '1' if s['fullscreen'] else '0'

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "bbport_overlay.h"
+#include "bbport_locale.h"
 
 #include <atomic>
 #include <cfloat>
@@ -156,11 +157,11 @@ void Hint(const char* text) {
 // Translate preset names only for the overlay. Persisted preset values and names stay unchanged.
 const char* PresetUiName(int preset) {
     switch (preset) {
-    case BbSettings::NativeAA: return "AA nativo";
-    case BbSettings::Quality: return "Qualidade";
-    case BbSettings::Balanced: return "Equilibrado";
-    case BbSettings::Performance: return "Desempenho";
-    case BbSettings::UltraPerformance: return "Ultra desempenho";
+    case BbSettings::NativeAA: return BbLocale::Text(BbLocale::Key::PresetNative);
+    case BbSettings::Quality: return BbLocale::Text(BbLocale::Key::PresetQuality);
+    case BbSettings::Balanced: return BbLocale::Text(BbLocale::Key::PresetBalanced);
+    case BbSettings::Performance: return BbLocale::Text(BbLocale::Key::PresetPerformance);
+    case BbSettings::UltraPerformance: return BbLocale::Text(BbLocale::Key::PresetUltra);
     default: return BbSettings::PresetName(preset);
     }
 }
@@ -173,20 +174,20 @@ void Menu() {
                             ImGuiCond_Appearing);
     ImGui::SetNextWindowSize(ImVec2(620.0f * base_scale, 0.0f), ImGuiCond_Appearing);
     bool keep_open = true;
-    if (!ImGui::Begin("Bloodborne — Configurações (Insert / L3+R3)", &keep_open,
+    if (!ImGui::Begin(BbLocale::Text(BbLocale::Key::Overlay0), &keep_open,
                       ImGuiWindowFlags_NoCollapse)) {
         ImGui::End();
         return;
     }
-    ImGui::Text("%.0f FPS  (%.1f ms)", frame_ms_avg > 0.0f ? 1000.0f / frame_ms_avg : 0.0f,
+    ImGui::Text(BbLocale::Text(BbLocale::Key::Overlay1), frame_ms_avg > 0.0f ? 1000.0f / frame_ms_avg : 0.0f,
                 frame_ms_avg);
 
-    ImGui::SeparatorText("Upscaling temporal");
-    static const char* upscalers[] = {"Desativado", "FSR 3.1", "FSR 4 (INT8)", "FSR 4.1.1 (INT8)",
-                                     "TAA (suavização nativa)", "DLSS (NVIDIA RTX)"};
+    ImGui::SeparatorText(BbLocale::Text(BbLocale::Key::Overlay2));
+    static const char* upscalers[] = {BbLocale::Text(BbLocale::Key::Overlay3), "FSR 3.1", "FSR 4 (INT8)", "FSR 4.1.1 (INT8)",
+                                     BbLocale::Text(BbLocale::Key::Overlay7), "DLSS (NVIDIA RTX)"};
     static const char* later[] = {"XeSS"};
     int upscaler = s.upscaler;
-    if (ImGui::BeginCombo("Upscaler", upscalers[upscaler])) {
+    if (ImGui::BeginCombo(BbLocale::Text(BbLocale::Key::Overlay10), upscalers[upscaler])) {
         for (int i = 0; i < BbSettings::UpscalerCount; ++i) {
             const bool supported = i == BbSettings::UpscalerFsr4 ? s.fsr4_supported.load()
                 : i == BbSettings::UpscalerFsr411 ? s.fsr411_supported.load()
@@ -198,7 +199,7 @@ void Menu() {
             ImGui::EndDisabled();
             if (!supported) {
                 ImGui::SameLine();
-                ImGui::TextDisabled("— não compatível com a GPU");
+                ImGui::TextDisabled(BbLocale::Text(BbLocale::Key::Overlay11));
             }
         }
         for (const char* name : later) {
@@ -206,7 +207,7 @@ void Menu() {
             ImGui::Selectable(name, false);
             ImGui::EndDisabled();
             ImGui::SameLine();
-            ImGui::TextDisabled("— em desenvolvimento");
+            ImGui::TextDisabled(BbLocale::Text(BbLocale::Key::Overlay12));
         }
         ImGui::EndCombo();
     }
@@ -215,25 +216,20 @@ void Menu() {
     }
     if (const char* problem = s.fsr4_problem.load()) {
         ImGui::PushTextWrapPos();
-        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "FSR 4 indisponível: %s", problem);
+        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), BbLocale::Text(BbLocale::Key::Overlay14), problem);
         if (!BbSettings::IsFsr4(s.upscaler))
-            ImGui::TextUnformatted("O modo selecionado acima está ativo. Você pode selecionar FSR 4 novamente.");
+            ImGui::TextUnformatted(BbLocale::Text(BbLocale::Key::Overlay15));
         ImGui::PopTextWrapPos();
     }
     if (BbSettings::IsFsr4(s.upscaler)) {
         if (s.upscaler == BbSettings::UpscalerFsr411) {
-            Hint("FSR 4.1.1 INT8: modelo da DLL AMD 4.1.1 reproduzido no Vulkan "
-                 "(resultado equivalente ao da DLL). Um modelo para Nativo a Desempenho e outro "
-                 "para Ultra desempenho. Arquivos: tools/fsr4cap/build_assets.sh (exige DLL e Proton).");
+            Hint(BbLocale::Text(BbLocale::Key::Overlay16));
         } else {
-            Hint("FSR 4 INT8 (modelo v07 do AMD FidelityFX SDK). Qualidade superior "
-                 "à do FSR 3.1, mas com maior custo de processamento. Mudar a predefinição "
-                 "recompila o modelo (breve pausa). Arquivos: tools/fetch_fsr4_assets.sh.");
+            Hint(BbLocale::Text(BbLocale::Key::Overlay17));
         }
-        Checkbox("FSR 4: exposição automática", s.fsr4_auto_exposure);
-        Checkbox("FSR 4: inverter sinal do jitter", s.fsr4_invert_jitter);
-        Hint("Teste: a rede do FSR 4 normaliza as cores pela exposição e a usa para decidir "
-             "quando descartar quadros anteriores. Mudanças imediatas, sem reiniciar.");
+        Checkbox(BbLocale::Text(BbLocale::Key::Overlay18), s.fsr4_auto_exposure);
+        Checkbox(BbLocale::Text(BbLocale::Key::Overlay19), s.fsr4_invert_jitter);
+        Hint(BbLocale::Text(BbLocale::Key::Overlay20));
     }
     const bool upscaler_on = s.upscaler != BbSettings::UpscalerOff;
     const bool taa = s.upscaler == BbSettings::UpscalerTaa;
@@ -243,12 +239,12 @@ void Menu() {
     char preset_label[64];
     std::snprintf(preset_label, sizeof(preset_label), "%s (x%.1f)", PresetUiName(preset),
                   BbSettings::PresetScale(preset));
-    if (ImGui::BeginCombo("Predefinição", preset_label)) {
+    if (ImGui::BeginCombo(BbLocale::Text(BbLocale::Key::Overlay22), preset_label)) {
         for (int i = 0; i < BbSettings::PresetCount; ++i) {
             char label[64];
             const float scale = BbSettings::PresetScale(i);
             const int output = s.output_res;
-            std::snprintf(label, sizeof(label), "%s (x%.1f, renderização %dx%d)",
+            std::snprintf(label, sizeof(label), BbLocale::Text(BbLocale::Key::Overlay23),
                           PresetUiName(i), scale,
                           int(std::lround(BbSettings::OutputWidths[output] / scale / 2) * 2),
                           int(std::lround(BbSettings::OutputHeights[output] / scale / 2) * 2));
@@ -260,71 +256,56 @@ void Menu() {
     }
     ImGui::EndDisabled();
     if (taa) {
-        ImGui::TextWrapped("O TAA suaviza a cena na resolução de saída, sem modelo FSR nem upscaling. "
-                           "A predefinição de FSR salva será restaurada ao selecionar FSR.");
+        ImGui::TextWrapped(BbLocale::Text(BbLocale::Key::Overlay24));
     }
-    ImGui::Text("Resolução interna atual: %d x %d", s.active_render_width.load(),
+    ImGui::Text(BbLocale::Text(BbLocale::Key::Overlay25), s.active_render_width.load(),
                 s.active_render_height.load());
     if (BbSettings::FixedRenderSession()) {
-        ImGui::Text("Predefinição inicial: %s", PresetUiName(s.startup_preset));
+        ImGui::Text(BbLocale::Text(BbLocale::Key::Overlay26), PresetUiName(s.startup_preset));
         if (const char* automatic = std::getenv("BB_AUTO_RENDER_RES");
             automatic && automatic[0] == '1') {
-            Hint("Ao usar saída diferente de 1080p, o jogo é renderizado na resolução da "
-                 "predefinição (patch de inicialização). É mais rápido no Steam Deck e em GPUs "
-                 "menos potentes. Mudar predefinição ou resolução de saída exige reiniciar. "
-                 "A opção de resolução dinâmica abaixo permite mudar sem reiniciar, mas mantém o pós-processamento em 1080p (mais lento).");
+            Hint(BbLocale::Text(BbLocale::Key::Overlay28));
         } else {
-            Hint("BB_RENDER_RES fixa a resolução interna na inicialização. Remova essa variável "
-                 "para mudar a resolução e as predefinições sem reiniciar o jogo.");
+            Hint(BbLocale::Text(BbLocale::Key::Overlay29));
         }
     } else {
-        Hint("AA nativo: o FSR funciona apenas como suavização. As outras predefinições "
-             "reduzem a resolução interna em relação à de saída. A interface é renderizada "
-             "na resolução de saída. A predefinição entra em vigor no próximo quadro, sem reiniciar.");
+        Hint(BbLocale::Text(BbLocale::Key::Overlay30));
     }
-    Checkbox("Nitidez (RCAS)", s.sharpen);
+    Checkbox(BbLocale::Text(BbLocale::Key::Overlay31), s.sharpen);
     ImGui::BeginDisabled(!s.sharpen);
-    Slider("Intensidade da nitidez", s.sharpness, 0.0f, 2.0f);
-    Hint("Até 1: nitidez do próprio upscaler (RCAS). Acima de 1: adiciona outra etapa RCAS. "
-         "Ctrl + clique no controle para digitar um valor exato.");
+    Slider(BbLocale::Text(BbLocale::Key::Overlay32), s.sharpness, 0.0f, 2.0f);
+    Hint(BbLocale::Text(BbLocale::Key::Overlay33));
     ImGui::EndDisabled();
-    Checkbox("Deslocamento subpixel (jitter)", s.jitter);
-    Hint("A cena é deslocada uma fração de pixel a cada quadro; o upscaler combina "
-         "informações de vários quadros para recuperar detalhes. Sem isso, há só suavização temporal.");
+    Checkbox(BbLocale::Text(BbLocale::Key::Overlay34), s.jitter);
+    Hint(BbLocale::Text(BbLocale::Key::Overlay35));
 
-    ImGui::SeparatorText("Máscara reativa");
+    ImGui::SeparatorText(BbLocale::Text(BbLocale::Key::Overlay36));
     ImGui::BeginDisabled(taa);
-    Checkbox("Ativar máscara", s.reactive);
-    Hint("Identifica efeitos transparentes (partículas e névoa) para o upscaler depender "
-         "menos dos quadros anteriores. Reduz rastros, mas pode aumentar a cintilação.");
+    Checkbox(BbLocale::Text(BbLocale::Key::Overlay37), s.reactive);
+    Hint(BbLocale::Text(BbLocale::Key::Overlay38));
     ImGui::BeginDisabled(!s.reactive);
-    Slider("Escala", s.reactive_scale, 0.0f, 4.0f);
-    Slider("Limite", s.reactive_threshold, 0.0f, 1.0f);
-    Slider("Máximo", s.reactive_max, 0.0f, 1.0f);
+    Slider(BbLocale::Text(BbLocale::Key::Overlay39), s.reactive_scale, 0.0f, 4.0f);
+    Slider(BbLocale::Text(BbLocale::Key::Overlay40), s.reactive_threshold, 0.0f, 1.0f);
+    Slider(BbLocale::Text(BbLocale::Key::Overlay41), s.reactive_max, 0.0f, 1.0f);
     bool show_mask = s.debug_view == BbSettings::DebugReactive;
-    if (ImGui::Checkbox("Exibir máscara (depuração)", &show_mask)) {
+    if (ImGui::Checkbox(BbLocale::Text(BbLocale::Key::Overlay42), &show_mask)) {
         s.debug_view = show_mask ? BbSettings::DebugReactive : BbSettings::DebugNone;
     }
     ImGui::EndDisabled();
     ImGui::EndDisabled();
-    Checkbox("Vetores de movimento dos personagens", s.object_motion);
-    Hint("Vetores precisos para objetos animados: roupas e armas apresentam menos "
-         "artefatos ao se mover. A cena estática não recebe processamento extra. "
-         "A alteração exige reiniciar o jogo.");
+    Checkbox(BbLocale::Text(BbLocale::Key::Overlay43), s.object_motion);
+    Hint(BbLocale::Text(BbLocale::Key::Overlay44));
     bool show_motion = s.debug_view == BbSettings::DebugMotion;
-    if (ImGui::Checkbox("Exibir vetores de movimento (depuração)", &show_motion)) {
+    if (ImGui::Checkbox(BbLocale::Text(BbLocale::Key::Overlay45), &show_motion)) {
         s.debug_view = show_motion ? BbSettings::DebugMotion : BbSettings::DebugNone;
     }
-    Hint("Vermelho/verde: movimento horizontal/vertical (8 pixels = brilho máximo). "
-         "Azul: pixel com vetor de movimento do objeto, não apenas da câmera. "
-         "Um objeto que se move sem azul nem vermelho/verde é interpretado pelo upscaler "
-         "como parado, causando rastros.");
+    Hint(BbLocale::Text(BbLocale::Key::Overlay46));
     ImGui::EndDisabled(); // upscaler off
 
-    ImGui::SeparatorText("Resolução de saída");
+    ImGui::SeparatorText(BbLocale::Text(BbLocale::Key::Overlay47));
     static const char* outputs[] = {"1280 x 720", "1920 x 1080", "2560 x 1440", "3840 x 2160"};
     int output = s.output_res;
-    if (ImGui::BeginCombo("Resolução de saída", outputs[output])) {
+    if (ImGui::BeginCombo(BbLocale::Text(BbLocale::Key::Overlay52), outputs[output])) {
         for (int i = 0; i < BbSettings::OutputCount; ++i) {
             if (ImGui::Selectable(outputs[i], i == output)) {
                 Store(s.output_res, i, true);
@@ -333,16 +314,13 @@ void Menu() {
         ImGui::EndCombo();
     }
     if (BbSettings::FixedRenderSession()) {
-        Hint("Resolução do quadro final e da interface. A predefinição determina a "
-             "resolução interna em relação à saída: 4K em Desempenho = 1920x1080. Exige reiniciar.");
+        Hint(BbLocale::Text(BbLocale::Key::Overlay53));
     } else {
-        Hint("A resolução final e da interface muda no próximo quadro. "
-             "A predefinição determina a resolução interna: 4K em Desempenho = 1920x1080. "
-             "Mudar a resolução redefine o histórico do FSR e pode provocar uma breve pausa.");
+        Hint(BbLocale::Text(BbLocale::Key::Overlay54));
     }
-    static const char* live_modes[] = {"Automático (conforme a GPU)", "Desativado (mais rápido)", "Ativado"};
+    static const char* live_modes[] = {BbLocale::Text(BbLocale::Key::Overlay55), BbLocale::Text(BbLocale::Key::Overlay56), BbLocale::Text(BbLocale::Key::Overlay57)};
     int live = s.live_resolution + 1;
-    if (ImGui::BeginCombo("Alterar resolução sem reiniciar", live_modes[live])) {
+    if (ImGui::BeginCombo(BbLocale::Text(BbLocale::Key::Overlay58), live_modes[live])) {
         for (int i = 0; i < 3; ++i) {
             if (ImGui::Selectable(live_modes[i], i == live)) {
                 Store(s.live_resolution, i - 1, true);
@@ -350,18 +328,15 @@ void Menu() {
         }
         ImGui::EndCombo();
     }
-    Hint("Ativado: a resolução de saída e a predefinição mudam sem reiniciar, mas o "
-         "pós-processamento do jogo permanece em 1080p, com perda de desempenho no "
-         "Steam Deck e em GPUs antigas. Desativado: tudo é renderizado na resolução "
-         "da predefinição, exigindo reinício. Automático ativa o modo em GPUs dedicadas potentes. A alteração exige reiniciar.");
-    ImGui::SeparatorText("Efeitos do jogo (exigem reiniciar)");
-    static const char* lods[] = {"Máximo (-2)", "Padrão do jogo", "Reduzido (1)", "Mínimo (2)"};
+    Hint(BbLocale::Text(BbLocale::Key::Overlay59));
+    ImGui::SeparatorText(BbLocale::Text(BbLocale::Key::Overlay60));
+    static const char* lods[] = {BbLocale::Text(BbLocale::Key::Overlay61), BbLocale::Text(BbLocale::Key::Overlay62), BbLocale::Text(BbLocale::Key::Overlay63), BbLocale::Text(BbLocale::Key::Overlay64)};
     static constexpr int lod_values[] = {-2, 0, 1, 2};
     int lod_index = 1;
     for (int i = 0; i < 4; ++i) {
         if (lod_values[i] == s.model_lod) lod_index = i;
     }
-    if (ImGui::BeginCombo("Nível de detalhe dos modelos", lods[lod_index])) {
+    if (ImGui::BeginCombo(BbLocale::Text(BbLocale::Key::Overlay65), lods[lod_index])) {
         for (int i = 0; i < 4; ++i) {
             if (ImGui::Selectable(lods[i], i == lod_index)) {
                 Store(s.model_lod, lod_values[i], true);
@@ -370,13 +345,10 @@ void Menu() {
         ImGui::EndCombo();
     }
     for (int e = 0; e < BbSettings::EffectCount; ++e) {
-        Checkbox(BbSettings::Effects[e].label, s.effects[e]);
+        Checkbox(BbLocale::EffectLabel(e), s.effects[e]);
     }
-    Hint("Os efeitos são ativados ou desativados por patches na inicialização (patches/Bloodborne.xml). "
-         "Desfoque de movimento e sombras de luzes dinâmicas podem pesar na GPU.");
-    Hint("Câmera livre: segure Cross e pressione L3 (teclado: Espaço + Z). "
-         "Menu de depuração: touchpad esquerdo / Tab. Exige DbgFont14h.ccm e DbgFont14h.tpf "
-         "em dvdroot_ps4/font, do mod Nexus #253. Touchpad direito: Backspace.");
+    Hint(BbLocale::Text(BbLocale::Key::Overlay66));
+    Hint(BbLocale::Text(BbLocale::Key::Overlay67));
 
     bool restart = s.object_motion != s.startup_object_motion ||
                    s.model_lod != s.startup_model_lod ||
@@ -387,22 +359,22 @@ void Menu() {
     }
     if (restart) {
         ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f),
-                           "Alterações pendentes: é necessário reiniciar o jogo");
-        if (ImGui::Button("Aplicar e reiniciar o jogo")) {
+                           BbLocale::Text(BbLocale::Key::Overlay68));
+        if (ImGui::Button(BbLocale::Text(BbLocale::Key::Overlay69))) {
             BbSettings::Save();
             runtime_restart();
         }
     }
 
-    ImGui::SeparatorText("Outros");
-    Checkbox("Contador de FPS no canto", s.show_fps);
+    ImGui::SeparatorText(BbLocale::Text(BbLocale::Key::Overlay70));
+    Checkbox(BbLocale::Text(BbLocale::Key::Overlay71), s.show_fps);
 
     ImGui::Spacing();
-    if (ImGui::Button("Fechar")) {
+    if (ImGui::Button(BbLocale::Text(BbLocale::Key::Overlay72))) {
         keep_open = false;
     }
     ImGui::SameLine();
-    ImGui::TextDisabled("Configurações salvas em bbport.ini");
+    ImGui::TextDisabled(BbLocale::Text(BbLocale::Key::Overlay73));
     ImGui::End();
     if (!keep_open) {
         SetOpen(false);
@@ -428,8 +400,8 @@ void TextEntryBox() {
     ImGui::Text("%s_", text_entry_text.c_str());
     ImGui::SetWindowFontScale(1.0f);
     ImGui::Separator();
-    ImGui::TextDisabled("Teclado: digite; Backspace apaga; Enter confirma; Esc cancela");
-    ImGui::TextDisabled("Controle: Cross (A) confirma; Circle (B) cancela");
+    ImGui::TextDisabled(BbLocale::Text(BbLocale::Key::Overlay77));
+    ImGui::TextDisabled(BbLocale::Text(BbLocale::Key::Overlay78));
     ImGui::End();
 }
 
@@ -445,7 +417,7 @@ void FpsCounter() {
                      ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav |
                      ImGuiWindowFlags_NoFocusOnAppearing);
     const auto& s = BbSettings::Get();
-    ImGui::Text("%.0f FPS  %.1f ms  %s", frame_ms_avg > 0.0f ? 1000.0f / frame_ms_avg : 0.0f,
+    ImGui::Text(BbLocale::Text(BbLocale::Key::Overlay80), frame_ms_avg > 0.0f ? 1000.0f / frame_ms_avg : 0.0f,
                 frame_ms_avg,
                 s.upscaler == BbSettings::UpscalerFsr3   ? "FSR 3.1"
                 : s.upscaler == BbSettings::UpscalerFsr4 ? "FSR 4"
