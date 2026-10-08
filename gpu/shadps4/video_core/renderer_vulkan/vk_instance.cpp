@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <cstdlib>
+
 #include <boost/container/static_vector.hpp>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
@@ -682,10 +684,20 @@ void Instance::CreateAllocator() {
         .vkGetDeviceProcAddr = VULKAN_HPP_DEFAULT_DISPATCHER.vkGetDeviceProcAddr,
     };
 
+    // Smaller VMA blocks make freed texture allocations more likely to empty an entire block,
+    // allowing the driver to reclaim VRAM. The old VMA default is typically 256 MiB.
+    // BB_VMA_BLOCK_MB can override the 64 MiB default for diagnostics.
+    static const VkDeviceSize block_size = [] {
+        const char* env = std::getenv("BB_VMA_BLOCK_MB");
+        const unsigned long mb = env ? std::strtoul(env, nullptr, 10) : 64ul;
+        return VkDeviceSize(std::max(1ul, mb)) << 20;
+    }();
+
     const VmaAllocatorCreateInfo allocator_info = {
         .flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
         .physicalDevice = physical_device,
         .device = *device,
+        .preferredLargeHeapBlockSize = block_size,
         .pVulkanFunctions = &functions,
         .instance = *instance,
         .vulkanApiVersion = TargetVulkanApiVersion,
