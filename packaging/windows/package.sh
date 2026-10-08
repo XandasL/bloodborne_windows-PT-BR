@@ -53,6 +53,10 @@ ldd "$dest/bin/bb-probe.exe" "$dest/bin/bb-gpu-capabilities.exe" |
     done
 cp -r scripts patches "$dest/"
 cp run.py LICENSE README.md packaging/windows/README-Windows.txt "$dest/"
+# Optional one-click NVIDIA telemetry launcher (writes CSV under user/gpu_logs).
+mkdir -p "$dest/tools"
+cp tools/monitor-gpu.ps1 "$dest/tools/"
+cp "Play Bloodborne + GPU Monitor.bat" "$dest/"
 if [[ -d fsr4_shaders ]]; then cp -r fsr4_shaders "$dest/"; fi
 # DLSS (NVIDIA RTX): the MSVC-built bridge and NVIDIA's runtime, next to bb-probe.exe
 # (packaging/windows/build_dlss.sh). Without them the DLSS option stays unavailable.

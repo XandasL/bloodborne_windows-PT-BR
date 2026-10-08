@@ -57,6 +57,7 @@ jobs:
           Copy-Item out\bb-play.exe artifact\
           if (Test-Path out\gpu-build.log) { Copy-Item out\gpu-build.log artifact\ }
           Copy-Item tools\monitor-gpu.ps1 artifact\
+          Copy-Item "Play Bloodborne + GPU Monitor.bat" artifact\
 
       - name: Upload test binaries
         uses: actions/upload-artifact@v4

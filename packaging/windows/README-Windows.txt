@@ -20,6 +20,12 @@ Starting
   shortcut to it, or add it to Steam with "Add a Non-Steam Game"). If no game folder is chosen
   yet it opens the launcher. Bloodborne.exe --play does the same. The log goes to
   user\last_run.log.
+- Play Bloodborne + GPU Monitor.bat (next to Bloodborne.exe) starts the game with the same
+  saved settings and logs NVIDIA GPU temperature, power, VRAM, usage, clock and fan speed
+  to user\\gpu_logs\\gpu_monitor_*.csv every two seconds. Logging ends automatically when
+  the Play Bloodborne.exe session ends (or the game crashes). This is CSV telemetry,
+  not an on-screen overlay. NVIDIA drivers must provide nvidia-smi.exe; if unavailable,
+  the game still starts without GPU logging. No administrator rights needed.
 - Advanced -> "Desktop shortcut" puts Bloodborne on the desktop.
 - Updates: when a new version is out, the launcher shows it at the bottom left; "Update"
   downloads and installs it and opens the launcher again (saves, settings and mods are kept).
