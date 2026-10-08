@@ -93,6 +93,30 @@ The game log contained **103** pairs of `Texture cache: memory pressure` and `VR
 
 Fans were reported at 100% for **319/430 samples (~74%)**. Ambient conditions were reported as unusually hot. However **83 °C on the main sensor alone does not demonstrate hotspot overheating, thermal throttling, electrical instability, or hardware damage**. A hard hang can truncate both game and GPU logs.
 
+### Additional WinDbg module and tagged-data evidence (2026-10-08)
+
+The tester followed up on the `WATCHDOG-20261008-1833.dmp` with
+`lmvm nvlddmkm` and `.enumtag`:
+
+```text
+module name: nvlddmkm T (no symbols)
+Loaded symbol image file: nvlddmkm.sys
+Image path: nvlddmkm.sys
+Timestamp: Thu Sep 17 20:53:52 2026 (6AAC7D90)
+ImageSize: 06D45000
+Mapping Form: Loaded
+```
+
+**Interpretation:**
+- The NVIDIA kernel module `nvlddmkm.sys` was **loaded**. `no symbols` is a lack of private driver debug symbols and **does not imply corruption or a missing driver**.
+- The PE image timestamp is **not the installed NVIDIA driver version** and is **not the driver installation date**. An exact driver version has not yet been captured.
+- The supplied `.enumtag` text was approximately **6.9 MB / 99,999 lines**, almost entirely raw hexadecimal dump-callback bytes. The paste **starts inside an existing data block**, and the only visible block header was near the end (`{8BE1C8F0-B5BD-48FE-BCB7BBD165DEB285} - 0x10 bytes`), so it should not be treated as a complete tag inventory.
+- No legible Vulkan command or NVIDIA timeout root cause could be attributed from the raw `.enumtag` bytes. The command enumerates secondary bugcheck callback blocks; decoding opaque private structures would require knowledge of the data format or specialized debugger extensions.
+- The raw `.enumtag` material may contain system-memory excerpts and hardware metadata; **it is intentionally not copied into this public repository**.
+
+**Safe next step, without starting Bloodborne:** obtain driver version from Windows PowerShell using
+`nvidia-smi --query-gpu=driver_version --format=csv,noheader`, if a version comparison becomes relevant.
+
 ### Potential leads — all UNCONFIRMED
 
 - Vulkan queue submit, image life-cycle and deferred frees, GPU completed-timeline synchronization, and barriers.
