@@ -57,6 +57,15 @@ Keyboard: WASD move, arrows camera, Space Cross, Left Shift Circle, E Square, Q 
 
 ## Known issues
 
+> **Experimental NVIDIA/Windows test builds (`test/vram-gc`):** A RTX 5070
+> session on 2026-10-08 ended in a full-system GPU timeout (`LiveKernelEvent 0x141`,
+> Vulkan `Device lost during submit`). **Further gameplay testing on the affected
+> machine is paused** until the problem is investigated. This does not by itself
+> establish hardware damage, overheating, or a proven GC bug.
+> See the [Windows/NVIDIA incident register](docs/WINDOWS_NVIDIA_INCIDENTS_2026-10.md)
+> for the timeline, WinDbg findings, previous driver crashes, and the fixed GPU
+> monitor script issue.
+
 - The character preview on the character creation screen stays empty. The character is
   created correctly and looks right in the game.
 - Some AMD graphics cards still crash when the game world loads; fixes are in progress.
