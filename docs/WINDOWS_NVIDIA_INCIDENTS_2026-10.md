@@ -127,6 +127,24 @@ Mapping Form: Loaded
 
 **Not established:** an actual VRAM exhaustion, physical GPU defect, thermal shutdown, a bad power supply, or a GC-specific regression.
 
+### Related public reports in upstream graphics code (research 2026-10-08)
+
+These were found in **other repositories**, not reproduced or verified as the same defect as INC-001. They are high-priority comparison targets for source review. In particular, distinct vendors/OSes can reach Vulkan `VK_ERROR_DEVICE_LOST` for unrelated reasons.
+
+1. **[deadinside28/bloodborne_pc #56 — GPU hang / AMDGPU reset while loading map](https://github.com/deadinside28/bloodborne_pc/issues/56)** — **OPEN** (filed 2026-10-07). Original Linux bbport on AMD/RADV: map load stalls an indexed draw, Linux reports `amdgpu: ring gfx timeout` and performs a full GPU reset that temporarily kills the desktop graphics session. The game ends in `vk_scheduler.cpp`: `Device lost during submit`. **Directly relevant:** that log also contains the five `SanitizeCopyLayers: Coercing copy source layers … to minimum` warnings present in our startup log. In the reporter's capture VRAM is *not* exhausted. Their GPU breadcrumbs pinpoint an indexed draw — **not necessarily the same offending draw as ours**.
+
+2. **[deadinside28/bloodborne_pc #39 — Windows AMD device lost / object motion](https://github.com/deadinside28/bloodborne_pc/issues/39)** — **OPEN** (filed 2026-10-06). Windows Vulkan bbport on an AMD RX 5600 XT: identical `vk_scheduler.cpp:450 SubmitExecution` / `Device lost during submit` signature, and again the same `SanitizeCopyLayers` warnings. In the issue body and follow-up comment, the author ran limited A/B tests: object motion on with vertex writes failed after ~35–55 s (five trials), while object motion off or its per-vertex-write path disabled ran **120 s without failure**. The author could not separate the vertex writes from the additional shader/pipeline variants as the exact trigger. **Our log also says** `Object motion: on (4194304 vertices per frame)`. This is a **strong audit lead**, **not a fix proven on NVIDIA** and **not grounds to ask for a hard-freeze reproduction**. The same issue separately reports actual AMD out-of-VRAM allocation failures with `0 images evicted`, which differ from our NVIDIA log, which actively evicted images and stayed below its logged critical threshold.
+
+3. **[deadinside28/bloodborne_pc #34 — indirect-dispatch GPU hang](https://github.com/deadinside28/bloodborne_pc/issues/34)** — **OPEN** (filed 2026-10-06). AMD/RADV Linux, experimental `BB_GUEST_IN_PLACE=1`: GPU breadcrumbs show an indirect dispatch reading an implausibly large group count and ending in device loss. Relevant as an example of **command-stream validity** causing GPU failure; our use of that experimental memory model has **not** been established.
+
+4. **[shadps4-emu/shadPS4 #4510 — same submit assertion on RTX 5080](https://github.com/shadps4-emu/shadPS4/issues/4510)** — **OPEN** (filed 2026-06-02). Reports exact `Device lost during submit` on NVIDIA RTX 5080, **but a different title: EA Sports UFC 3**, not Bloodborne. Shows the renderer family and NVIDIA can encounter the symptom but is **not direct Bloodborne evidence**.
+
+5. **[shadps4-emu/shadPS4 #4816 — device-loss diagnostic proposal](https://github.com/shadps4-emu/shadPS4/issues/4816)** — **OPEN** (filed 2026-08-08). A different game's fork study proposes `VK_EXT_device_fault`, `VK_EXT_device_address_binding_report` and `VK_NV_device_diagnostic_checkpoints` for more useful Vulkan loss diagnostics, and discusses a possible unbounded retry on a lost device. **Evaluate extension availability and overhead before borrowing designs**; these are proposed diagnostics, not an established fix for this incident.
+
+6. Community reports include an [shadPS4 Bloodborne session that sometimes froze the entire desktop before resuming](https://www.reddit.com/r/shadps4/comments/1uktigz/bloodborne_on_shadps4_randomly_freezes_but/) (2026-07-01) and [Windows Bloodborne on RTX 5070 with repeat crashes after fast travel](https://www.reddit.com/r/BloodbornePC/comments/1vd276d/game_crashes_when_fast_traveling/) (2026-08-01). Both are **shadPS4**, not necessarily this bbport, and neither reproduces our exact WinDbg `0x141` evidence.
+
+**Action for developers:** review object-motion per-vertex writes / pipeline variants, cached and deferred image lifetimes, copy-layer coercion, and Vulkan GPU breadcrumbs/checkpoints **before** further affected-machine testing. Compare the actual source branches and commits before porting any fix. Similar warnings/errors alone do not show common causality.
+
 ### Investigation checklist
 
 - [x] Obtain and confirm NVIDIA driver version **617.14**, installed during the incident, with no intervening driver update.
