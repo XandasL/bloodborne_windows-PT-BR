@@ -61,20 +61,40 @@ jobs:
         shell: msys2 {0}
         run: bash build.sh
 
-      - name: Collect binaries
+      - name: Assemble ready-to-copy port update
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path artifact | Out-Null
-          Copy-Item out\bb-probe.exe artifact\
-          Copy-Item out\bb-gpu-capabilities.exe artifact\
-          Copy-Item out\bb-play.exe artifact\
-          if (Test-Path out\gpu-build.log) { Copy-Item out\gpu-build.log artifact\ }
-          Copy-Item tools\monitor-gpu.ps1 artifact\
-          Copy-Item "Play Bloodborne + GPU Monitor.bat" artifact\
+          # The archive root matches the existing Bloodborne installation directory.
+          # Players only need to extract and paste its contents alongside Bloodborne.exe.
+          $root = "artifact"
+          New-Item -ItemType Directory -Force -Path "$root/bin", "$root/tools" | Out-Null
+          Copy-Item out/bb-probe.exe "$root/bin/bb-probe.exe"
+          Copy-Item out/bb-gpu-capabilities.exe "$root/bin/bb-gpu-capabilities.exe"
+          # Update the native Play Bloodborne.exe helper rather than shipping an unused bb-play.exe.
+          Copy-Item out/bb-play.exe "$root/Play Bloodborne.exe"
+          Copy-Item tools/monitor-gpu.ps1 "$root/tools/monitor-gpu.ps1"
+          Copy-Item "Play Bloodborne + GPU Monitor.bat" "$root/Play Bloodborne + GPU Monitor.bat"
 
-      - name: Upload test binaries
+          $expectedFiles = @(
+            "$root/bin/bb-probe.exe",
+            "$root/bin/bb-gpu-capabilities.exe",
+            "$root/Play Bloodborne.exe",
+            "$root/tools/monitor-gpu.ps1",
+            "$root/Play Bloodborne + GPU Monitor.bat"
+          )
+          foreach ($item in $expectedFiles) {
+            if (-not (Test-Path -LiteralPath $item -PathType Leaf)) {
+              throw "Missing staged test file: $item"
+            }
+          }
+          Write-Host "Ready to paste into the directory containing Bloodborne.exe:"
+          Get-ChildItem $root -Recurse -File | ForEach-Object {
+            Write-Host ($_.FullName.Substring((Resolve-Path $root).Path.Length + 1))
+          }
+
+      - name: Upload ready-to-copy Windows update
         uses: actions/upload-artifact@v4
         with:
-          name: bloodborne-windows-vram-gc-test
-          path: artifact
+          name: bloodborne-windows-test-copiar-na-raiz
+          path: artifact/
           if-no-files-found: error
