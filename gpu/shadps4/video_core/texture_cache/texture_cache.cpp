@@ -1015,12 +1015,8 @@ void TextureCache::UntrackImageTail(ImageId image_id) {
 void TextureCache::GarbageCollectImages() {
     if (instance.CanReportMemoryUsage()) {
         total_used_memory = instance.GetDeviceMemoryUsage();
-        // bbport: on integrated GPUs (Steam Deck) the usage covers system-memory heaps holding
-        // much more than images (buffers backing guest memory), and the startup budget left
-        // ~1 GB after its 8 GB system reserve: usage stayed above the critical mark, so the
-        // collector evicted images used two or three frames ago on every submission and wrote
-        // GPU-written ones back. Compare with the driver's current budget instead.
-        // BB_GC_BUDGET_MB=N: this rule with a fixed budget on any GPU (tests on a desktop).
+        // bbport: on integrated GPUs the usage can include much more than images. Compare with
+        // the driver's current budget instead. BB_GC_BUDGET_MB=N forces this rule on any GPU.
         static const u64 forced_budget = [] {
             const char* env = std::getenv("BB_GC_BUDGET_MB");
             return env ? std::strtoull(env, nullptr, 10) << 20 : 0;
@@ -1034,46 +1030,77 @@ void TextureCache::GarbageCollectImages() {
             }
         }
     }
+
+    // gc_tick advances once per guest submission (hundreds per second), so it is not a useful
+    // wall-clock age. Keep one tick sample per second and collect ordinary stale textures only
+    // after BB_GC_IDLE_SECONDS (20 by default). Under memory pressure the short tick thresholds
+    // are still used so the collector can react immediately.
+    const u64 second = u64(std::chrono::duration_cast<std::chrono::seconds>(
+                               std::chrono::steady_clock::now().time_since_epoch())
+                               .count());
+    if (second != gc_second) {
+        gc_second = second;
+        gc_tick_at_second[second % gc_tick_at_second.size()] = gc_tick;
+    }
+
     if (total_used_memory < trigger_gc_memory) {
         return;
     }
+
+    static const u64 idle_seconds = [] {
+        const char* env = std::getenv("BB_GC_IDLE_SECONDS");
+        const u64 requested = env ? std::strtoull(env, nullptr, 10) : 20;
+        return std::min<u64>(63, std::max<u64>(1, requested));
+    }();
+    const u64 idle_tick =
+        gc_tick_at_second[(second - idle_seconds) % gc_tick_at_second.size()];
+
     std::scoped_lock lock{mutex};
     bool pressured = false;
     bool aggresive = false;
-    u64 ticks_to_destroy = 0;
+    u64 below_tick = 0;
     size_t num_deletions = 0;
+    u32 visited = 0;
 
     const auto configure = [&](bool allow_aggressive) {
         pressured = total_used_memory >= pressure_gc_memory;
         aggresive = allow_aggressive && total_used_memory >= critical_gc_memory;
-        ticks_to_destroy = aggresive ? 160 : pressured ? 80 : 16;
-        ticks_to_destroy = std::min(ticks_to_destroy, gc_tick);
+        const u64 ticks_to_destroy =
+            std::min<u64>(aggresive ? 160 : pressured ? 80 : 16, gc_tick);
+        below_tick = gc_tick - ticks_to_destroy;
+        if (!pressured && !aggresive) {
+            below_tick = std::min(below_tick, idle_tick);
+        }
         num_deletions = aggresive ? 40 : pressured ? 20 : 10;
+        visited = 0;
     };
+
     const auto clean_up = [&](ImageId image_id) {
-        if (num_deletions == 0) {
+        if (num_deletions == 0 || ++visited > 256) {
             return true;
         }
-        --num_deletions;
+
         auto& image = slot_images[image_id];
         const bool download = image.SafeToDownload();
         const bool tiled = image.info.IsTiled();
-        if (tiled && download) {
-            // This is a workaround for now. We can't handle non-linear image downloads.
+
+        // GPU-written images that cannot be evicted must not consume the deletion budget or sit
+        // forever at the head of the LRU. This was the case behind repeated "0 images evicted"
+        // reports while VRAM kept growing as new areas were visited.
+        if ((tiled && download) || (download && !pressured)) {
+            lru_cache.Touch(image.lru_id, gc_tick);
             return false;
         }
-        if (download && !pressured) {
-            return false;
-        }
+
+        --num_deletions;
         if (download) {
-            // bbport: synchronously, while the image still protects its pages. A deferred
-            // write-back landed after FreeImage had unprotected them, over whatever the game
-            // had meanwhile stored there (e.g. its heap after unloading an area).
+            // Write back synchronously while the image still protects its pages.
             DownloadImageMemory(image_id, true);
             ++gc_downloads;
         }
         ++gc_evictions;
         FreeImage(image_id);
+
         if (total_used_memory < critical_gc_memory) {
             if (aggresive) {
                 num_deletions >>= 2;
@@ -1088,16 +1115,15 @@ void TextureCache::GarbageCollectImages() {
         return false;
     };
 
-    // Try to remove anything old enough and not high priority.
     configure(false);
-    lru_cache.ForEachItemBelow(gc_tick - ticks_to_destroy, clean_up);
+    lru_cache.ForEachItemBelow(below_tick, clean_up);
 
     if (total_used_memory >= critical_gc_memory) {
-        // If we are still over the critical limit, run an aggressive GC
         configure(true);
-        lru_cache.ForEachItemBelow(gc_tick - ticks_to_destroy, clean_up);
+        lru_cache.ForEachItemBelow(below_tick, clean_up);
     }
-    // bbport: evictions under memory pressure, at most every 5 s (BB_FRAME_STATS or not).
+
+    // Report pressure at most every five seconds.
     if (pressured || gc_downloads != 0) {
         const auto now = std::chrono::steady_clock::now();
         if (now - gc_report_time >= std::chrono::seconds(5)) {
