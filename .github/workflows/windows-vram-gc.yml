@@ -57,6 +57,22 @@ jobs:
           }
           Write-Host "GPU monitor parses in Windows PowerShell 5.1"
 
+      - name: Smoke-test GPU monitor startup on Windows
+        shell: powershell
+        run: |
+          # Parsing alone missed a command-binding error in the previous build.
+          # Exercise the actual startup/launch/exit path using an OS tool as dummy game.
+          $fixture = Join-Path $env:RUNNER_TEMP "bb-gpu-monitor-smoke"
+          $toolsDir = Join-Path $fixture "tools"
+          New-Item -ItemType Directory -Force -Path $toolsDir | Out-Null
+          Copy-Item tools/monitor-gpu.ps1 (Join-Path $toolsDir "monitor-gpu.ps1")
+          Copy-Item (Join-Path $env:WINDIR "System32/whoami.exe") (Join-Path $fixture "Play Bloodborne.exe")
+          & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File (Join-Path $toolsDir "monitor-gpu.ps1") -LaunchGame -IntervalSeconds 1 -OutputDirectory (Join-Path $fixture "logs")
+          if ($LASTEXITCODE -ne 0) {
+            throw "GPU monitor smoke-test failed: PowerShell exit code $LASTEXITCODE"
+          }
+          Write-Host "GPU monitor smoke-test passed"
+
       - name: Build
         shell: msys2 {0}
         run: bash build.sh
