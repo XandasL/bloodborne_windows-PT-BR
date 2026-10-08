@@ -25,6 +25,27 @@ namespace VideoCore {
 static constexpr u64 PageShift = 12;
 static constexpr u64 NumFramesBeforeRemoval = 32;
 
+// Optional Windows VRAM lifetime experiment. Default settings preserve the existing GC.
+// BB_GC_GUARD_TICKS=N waits for N completed GPU timeline ticks after the last recorded image
+// access before permitting GC eviction. This is only a diagnostic heuristic: not every Vulkan
+// use is necessarily represented by tick_accessed_last.
+static u64 GcGuardTicks() {
+    static const u64 guard_ticks = [] {
+        const char* env = std::getenv("BB_GC_GUARD_TICKS");
+        return env ? std::min<u64>(std::strtoull(env, nullptr, 10), 1024) : 0;
+    }();
+    return guard_ticks;
+}
+
+// 0 = off; 1 = trace GC removals; 2 = trace all image removals.
+static int GcTraceMode() {
+    static const int trace_mode = [] {
+        const char* env = std::getenv("BB_GC_TRACE_IMAGES");
+        return env ? std::atoi(env) : 0;
+    }();
+    return trace_mode;
+}
+
 TextureCache::TextureCache(const Vulkan::Instance& instance_, Vulkan::Scheduler& scheduler_,
                            Vulkan::Runtime& runtime_, AmdGpu::Liverpool* liverpool_,
                            BufferCache& buffer_cache_, PageManager& tracker_)
@@ -1061,6 +1082,14 @@ void TextureCache::GarbageCollectImages() {
     const u64 idle_tick =
         gc_tick_at_second[(second - idle_seconds) % gc_tick_at_second.size()];
 
+    const u64 guard_ticks = GcGuardTicks();
+    u64 completed_tick = 0;
+    if (guard_ticks != 0) {
+        // Refresh only once per GC pass. No driver query overhead in the default mode.
+        scheduler.GetWorkSemaphore()->Refresh();
+        completed_tick = scheduler.GetWorkSemaphore()->KnownGpuTick();
+    }
+
     std::scoped_lock lock{mutex};
     bool pressured = false;
     bool aggresive = false;
@@ -1098,6 +1127,16 @@ void TextureCache::GarbageCollectImages() {
             return false;
         }
 
+        // An opt-in conservative test, independent of the scheduler's deferred destruction.
+        // Don't decrement the deletion budget when the GPU has not passed the last image access
+        // by the requested margin. Leave this LRU entry eligible on a later GC pass.
+        if (guard_ticks != 0 &&
+            (image.tick_accessed_last > completed_tick ||
+             completed_tick - image.tick_accessed_last < guard_ticks)) {
+            ++gc_guard_skips;
+            return false;
+        }
+
         --num_deletions;
         if (download) {
             // Write back synchronously while the image still protects its pages.
@@ -1105,7 +1144,7 @@ void TextureCache::GarbageCollectImages() {
             ++gc_downloads;
         }
         ++gc_evictions;
-        FreeImage(image_id);
+        FreeImage(image_id, true);
 
         if (total_used_memory < critical_gc_memory) {
             if (aggresive) {
@@ -1130,7 +1169,7 @@ void TextureCache::GarbageCollectImages() {
     }
 
     // Report pressure at most every five seconds.
-    if (pressured || gc_downloads != 0) {
+    if (pressured || gc_downloads != 0 || (guard_ticks != 0 && gc_guard_skips != 0)) {
         const auto now = std::chrono::steady_clock::now();
         if (now - gc_report_time >= std::chrono::seconds(5)) {
             std::printf("Texture cache: memory pressure, %llu of %llu MiB (critical %llu): "
@@ -1159,6 +1198,14 @@ void TextureCache::GarbageCollectImages() {
                         (unsigned long long)(vma_other >> 20),
                         (unsigned long long)live_count,
                         (unsigned long long)(live_guest >> 20));
+            if (guard_ticks != 0) {
+                std::printf("GC lifetime guard: margin %llu ticks; gpu completed %llu; "
+                            "%llu eviction candidates delayed since last report\n",
+                            (unsigned long long)guard_ticks,
+                            (unsigned long long)completed_tick,
+                            (unsigned long long)gc_guard_skips);
+                gc_guard_skips = 0;
+            }
             gc_report_time = now;
             gc_evictions = gc_downloads = 0;
         }
@@ -1222,7 +1269,7 @@ void TextureCache::TouchImage(const Image& image) {
     lru_cache.Touch(image.lru_id, gc_tick);
 }
 
-void TextureCache::DeleteImage(ImageId image_id) {
+void TextureCache::DeleteImage(ImageId image_id, bool from_gc) {
     Image& image = slot_images[image_id];
     ASSERT_MSG(!image.IsTracked(), "Image was not untracked");
     ASSERT_MSG(False(image.flags & ImageFlagBits::Registered), "Image was not unregistered");
@@ -1246,8 +1293,47 @@ void TextureCache::DeleteImage(ImageId image_id) {
         }
     }
 
+    // Vulkan destruction is already deferred until the scheduler's GPU timeline has passed the
+    // queued tick. Trace both sides to distinguish logical cache eviction from actual VMA free.
+    const int trace_mode = GcTraceMode();
+    const bool trace = trace_mode >= 2 || (from_gc && trace_mode >= 1);
+    const u64 enqueue_tick = scheduler.CurrentTick();
+    const u64 last_access_tick = image.tick_accessed_last;
+    const u64 uid = image.image_uid;
+    const u64 host_image = image.backing
+                               ? std::bit_cast<u64>(static_cast<VkImage>(image.GetImage()))
+                               : 0;
+    const void* allocation = image.backing
+                                 ? static_cast<const void*>(image.backing->image.allocation)
+                                 : nullptr;
+    if (trace) {
+        std::printf("GC lifetime queue: source=%s id=%u uid=%llu vk_image=%llx "
+                    "vma=%p access_tick=%llu enqueue_tick=%llu gpu_completed=%llu "
+                    "flags=%u bound=%u target=%u safe_download=%u tiled=%u\n",
+                    from_gc ? "gc" : "other", (unsigned)image_id.index,
+                    (unsigned long long)uid, (unsigned long long)host_image, allocation,
+                    (unsigned long long)last_access_tick, (unsigned long long)enqueue_tick,
+                    (unsigned long long)scheduler.GetWorkSemaphore()->KnownGpuTick(),
+                    (unsigned)image.flags, (unsigned)image.binding.is_bound,
+                    (unsigned)image.binding.is_target, (unsigned)image.SafeToDownload(),
+                    (unsigned)image.info.IsTiled());
+        std::fflush(stdout);
+    }
+
     // Reclaim image and any image views it references.
-    scheduler.DeferOperation([this, image_id] {
+    scheduler.DeferOperation([this, image_id, from_gc, trace, enqueue_tick, last_access_tick,
+                              uid, host_image, allocation] {
+        if (trace) {
+            const u64 completed = scheduler.GetWorkSemaphore()->KnownGpuTick();
+            std::printf("GC lifetime destroy: source=%s id=%u uid=%llu vk_image=%llx "
+                        "vma=%p access_tick=%llu enqueue_tick=%llu gpu_completed=%llu "
+                        "timeline_ready=%u\n",
+                        from_gc ? "gc" : "other", (unsigned)image_id.index,
+                        (unsigned long long)uid, (unsigned long long)host_image, allocation,
+                        (unsigned long long)last_access_tick, (unsigned long long)enqueue_tick,
+                        (unsigned long long)completed, (unsigned)(completed >= enqueue_tick));
+            std::fflush(stdout);
+        }
         Image& image = slot_images[image_id];
         for (auto& backing : image.backing_images) {
             for (const ImageViewId image_view_id : backing.image_view_ids) {

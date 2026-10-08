@@ -372,15 +372,15 @@ private:
     void MarkAsMaybeDirty(ImageId image_id, Image& image);
 
     /// Removes the image and any views/surface metas that reference it.
-    void DeleteImage(ImageId image_id);
+    void DeleteImage(ImageId image_id, bool from_gc = false);
 
     /// Touch the image in the LRU cache.
     void TouchImage(const Image& image);
 
-    void FreeImage(ImageId image_id) {
+    void FreeImage(ImageId image_id, bool from_gc = false) {
         UntrackImage(image_id);
         UnregisterImage(image_id);
-        DeleteImage(image_id);
+        DeleteImage(image_id, from_gc);
     }
 
     void GarbageCollectImages();
@@ -401,6 +401,7 @@ private:
     std::unordered_set<ImageId> download_images;
     u64 total_used_memory = 0;
     u64 gc_evictions = 0, gc_downloads = 0; ///< bbport: pressure report
+    u64 gc_guard_skips = 0; ///< opt-in GPU-completion guard diagnostic
     std::chrono::steady_clock::time_point gc_report_time{};
     /// bbport: gc_tick at each of the last 64 seconds, for idle age in wall-clock seconds.
     std::array<u64, 64> gc_tick_at_second{};
