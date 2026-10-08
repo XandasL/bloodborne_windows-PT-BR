@@ -28,7 +28,7 @@ function Find-NvidiaSmi {
 }
 
 # In the full package this script is under tools; the CI test artifact ships it at its root.
-$portDir = if (Split-Path -Leaf $PSScriptRoot -eq "tools") {
+$portDir = if ((Split-Path -Leaf $PSScriptRoot) -eq "tools") {
     Split-Path -Parent $PSScriptRoot
 } else {
     $PSScriptRoot
