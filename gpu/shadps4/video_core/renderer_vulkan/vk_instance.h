@@ -485,6 +485,9 @@ public:
     /// (VK_EXT_memory_budget: what this process can use now, other processes included).
     [[nodiscard]] u64 GetDeviceMemoryBudgetNow() const;
 
+    /// Device-local memory tracked by VMA: reserved blocks and live allocation bytes.
+    void GetVmaDeviceUsage(u64& block_bytes, u64& allocation_bytes) const;
+
     /// Returns the total memory budget available to the device.
     [[nodiscard]] u64 GetTotalMemoryBudget() const {
         return total_memory_budget;

@@ -862,6 +862,19 @@ u64 Instance::GetDeviceMemoryBudgetNow() const {
     return total_budget;
 }
 
+void Instance::GetVmaDeviceUsage(u64& block_bytes, u64& allocation_bytes) const {
+    block_bytes = 0;
+    allocation_bytes = 0;
+    std::array<VmaBudget, VK_MAX_MEMORY_HEAPS> budgets{};
+    vmaGetHeapBudgets(allocator, budgets.data());
+    for (u32 heap = 0; heap < memory_properties.memoryHeapCount; ++heap) {
+        if (memory_properties.memoryHeaps[heap].flags & vk::MemoryHeapFlagBits::eDeviceLocal) {
+            block_bytes += budgets[heap].statistics.blockBytes;
+            allocation_bytes += budgets[heap].statistics.allocationBytes;
+        }
+    }
+}
+
 vk::FormatFeatureFlags2 Instance::GetFormatFeatureFlags(vk::Format format) const {
     const auto it = format_properties.find(format);
     if (it == format_properties.end()) {

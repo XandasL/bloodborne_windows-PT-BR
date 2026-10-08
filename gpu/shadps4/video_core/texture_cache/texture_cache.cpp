@@ -873,7 +873,10 @@ void TextureCache::RegisterImage(ImageId image_id) {
                "Trying to register an already registered image");
     image.flags |= ImageFlagBits::Registered;
     ++registry_generation;
-    total_used_memory += Common::AlignUp(image.info.guest_size, 1024);
+    const u64 guest_bytes = Common::AlignUp(image.info.guest_size, 1024);
+    total_used_memory += guest_bytes;
+    BbStats::live_image_bytes.fetch_add(guest_bytes, std::memory_order_relaxed);
+    BbStats::live_images.fetch_add(1, std::memory_order_relaxed);
     image.lru_id = lru_cache.Insert(image_id, gc_tick);
     image.lru_touched_tick = gc_tick;
     ForEachPage(image.info.guest_address, image.info.guest_size,
@@ -887,7 +890,10 @@ void TextureCache::UnregisterImage(ImageId image_id) {
     image.flags &= ~ImageFlagBits::Registered;
     ++registry_generation;
     lru_cache.Free(image.lru_id);
-    total_used_memory -= Common::AlignUp(image.info.guest_size, 1024);
+    const u64 guest_bytes = Common::AlignUp(image.info.guest_size, 1024);
+    total_used_memory -= guest_bytes;
+    BbStats::live_image_bytes.fetch_sub(guest_bytes, std::memory_order_relaxed);
+    BbStats::live_images.fetch_sub(1, std::memory_order_relaxed);
     ForEachPage(image.info.guest_address, image.info.guest_size, [this, image_id](u64 page) {
         const auto page_it = page_table.find(page);
         if (page_it == nullptr) {
@@ -1133,6 +1139,26 @@ void TextureCache::GarbageCollectImages() {
                         (unsigned long long)(pressure_gc_memory >> 20),
                         (unsigned long long)(critical_gc_memory >> 20),
                         (unsigned long long)gc_evictions, (unsigned long long)gc_downloads);
+
+            u64 vma_blocks = 0;
+            u64 vma_used = 0;
+            instance.GetVmaDeviceUsage(vma_blocks, vma_used);
+            const u64 vk_images = BbStats::vk_image_bytes.load(std::memory_order_relaxed);
+            const u64 live_guest = BbStats::live_image_bytes.load(std::memory_order_relaxed);
+            const u64 live_count = BbStats::live_images.load(std::memory_order_relaxed);
+            const u64 vma_free = vma_blocks > vma_used ? vma_blocks - vma_used : 0;
+            const u64 vma_other = vma_used > vk_images ? vma_used - vk_images : 0;
+            std::printf("VRAM diag: total %llu MiB; VMA blocks %llu MiB, used %llu MiB, "
+                        "free/fragmented %llu MiB; Vulkan images %llu MiB; "
+                        "other VMA %llu MiB; texture-cache live %llu images / %llu MiB guest\n",
+                        (unsigned long long)(total_used_memory >> 20),
+                        (unsigned long long)(vma_blocks >> 20),
+                        (unsigned long long)(vma_used >> 20),
+                        (unsigned long long)(vma_free >> 20),
+                        (unsigned long long)(vk_images >> 20),
+                        (unsigned long long)(vma_other >> 20),
+                        (unsigned long long)live_count,
+                        (unsigned long long)(live_guest >> 20));
             gc_report_time = now;
             gc_evictions = gc_downloads = 0;
         }

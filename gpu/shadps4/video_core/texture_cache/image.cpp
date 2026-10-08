@@ -87,15 +87,18 @@ static vk::FormatFeatureFlags2 FormatFeatureFlags(const vk::ImageUsageFlags usag
 
 UniqueImage::~UniqueImage() {
     if (image) {
+        BbStats::vk_image_bytes.fetch_sub(size_bytes, std::memory_order_relaxed);
         vmaDestroyImage(allocator, image, allocation);
     }
 }
 
 void UniqueImage::Destroy() {
     if (image) {
+        BbStats::vk_image_bytes.fetch_sub(size_bytes, std::memory_order_relaxed);
         vmaDestroyImage(allocator, image, allocation);
         image = vk::Image{};
         allocation = {};
+        size_bytes = 0;
     }
 }
 
@@ -120,6 +123,7 @@ void UniqueImage::Create(const vk::ImageCreateInfo& image_ci) {
                vk::to_string(vk::Result{result}));
     image = vk::Image{unsafe_image};
     size_bytes = alloc_info.size;
+    BbStats::vk_image_bytes.fetch_add(size_bytes, std::memory_order_relaxed);
 }
 
 Image::Image(const Vulkan::Instance& instance, Vulkan::Runtime& runtime_,
