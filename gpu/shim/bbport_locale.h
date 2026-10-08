@@ -7,6 +7,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <initializer_list>
+#include <cstdio>
+#include <string>
 
 #ifdef _WIN32
 #ifndef NOMINMAX
@@ -47,15 +49,54 @@ inline Language SystemLanguage() {
 #endif
 }
 
+// The patch-only Windows test builds replace bin/bb-probe.exe but keep the user's existing
+// Bloodborne.exe launcher. Read its saved UI preference as a fallback when an older launcher
+// does not forward BB_UI_LANGUAGE yet. Never read the game's language option here.
+inline Language LauncherLanguageOrSystem() {
+#ifdef _WIN32
+    wchar_t appdata[32768];
+    const DWORD length = GetEnvironmentVariableW(L"APPDATA", appdata, 32768);
+    if (!length || length >= 32768) return SystemLanguage();
+
+    const std::wstring config = std::wstring(appdata, length) +
+                                L"\\bbport-launcher\\settings.json";
+    FILE* file = _wfopen(config.c_str(), L"rb");
+    if (!file) return SystemLanguage();
+
+    char buffer[16384] = {};
+    const std::size_t count = std::fread(buffer, 1, sizeof(buffer) - 1, file);
+    std::fclose(file);
+    const std::string json(buffer, count);
+
+    const std::size_t key = json.find("\"ui_language\"");
+    if (key == std::string::npos) return SystemLanguage();
+    std::size_t pos = json.find(':', key + sizeof("\"ui_language\"") - 1);
+    if (pos == std::string::npos) return SystemLanguage();
+    ++pos;
+    while (pos < json.size() &&
+           (json[pos] == ' ' || json[pos] == '\t' || json[pos] == '\r' || json[pos] == '\n')) {
+        ++pos;
+    }
+    if (pos >= json.size() || json[pos] != '"') return SystemLanguage();
+    const std::size_t end = json.find('"', pos + 1);
+    if (end == std::string::npos) return SystemLanguage();
+    const std::string choice = json.substr(pos + 1, end - pos - 1);
+    return choice.empty() ? SystemLanguage() : LanguageFrom(choice.c_str());
+#else
+    return SystemLanguage();
+#endif
+}
+
 inline Language CurrentLanguage() {
     static const Language language = [] {
-        // Set by Windows launcher, including when started with --play or the desktop shortcut.
-        // An empty/system choice means that the OS locale takes priority.
-        if (const char* choice = std::getenv("BB_UI_LANGUAGE"); choice && *choice &&
-            std::strcmp(choice, "auto") != 0 && std::strcmp(choice, "system") != 0) {
-            return LanguageFrom(choice);
+        // New launcher: explicit choice passed to the game, including desktop shortcuts.
+        if (const char* choice = std::getenv("BB_UI_LANGUAGE"); choice) {
+            if (std::strcmp(choice, "auto") == 0 || std::strcmp(choice, "system") == 0)
+                return SystemLanguage();
+            if (*choice) return LanguageFrom(choice);
         }
-        return SystemLanguage();
+        // Older Windows launcher: read the existing app settings directly, then OS UI locale.
+        return LauncherLanguageOrSystem();
     }();
     return language;
 }
