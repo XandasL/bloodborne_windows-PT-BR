@@ -17,6 +17,7 @@
 | Item | Observed value |
 | --- | --- |
 | GPU | NVIDIA GeForce RTX 5070, 12 GB VRAM |
+| NVIDIA driver version | **617.14** (tester-reported after incident; same version at incident time only if no intervening driver update) |
 | OS | Windows x64, kernel version `10.0.26300` (WinDbg) |
 | Port | Windows native Vulkan port, branch `test/vram-gc` |
 | Output | 3840×2160 |
@@ -27,7 +28,7 @@
 | Other games | No comparable behavior previously reported, but not retested since the incident |
 | After restart | Desktop and GPU behavior reportedly returned to normal; physical damage not established |
 
-The exact board partner/model, PSU, installed NVIDIA driver version, hotspot temperature, and whether optional GC diagnostic environment variables were enabled in this run have **not** been confirmed.
+The exact board partner/model, PSU, hotspot temperature, whether optional GC diagnostic environment variables were enabled, and whether the **reported NVIDIA driver version 617.14** was unchanged since the incident have **not** been confirmed.
 
 ### Timeline / observed outcome
 
@@ -109,13 +110,12 @@ Mapping Form: Loaded
 
 **Interpretation:**
 - The NVIDIA kernel module `nvlddmkm.sys` was **loaded**. `no symbols` is a lack of private driver debug symbols and **does not imply corruption or a missing driver**.
-- The PE image timestamp is **not the installed NVIDIA driver version** and is **not the driver installation date**. An exact driver version has not yet been captured.
+- The PE image timestamp is **not the installed NVIDIA driver version** and is **not the driver installation date**. The tester subsequently reported **NVIDIA driver version 617.14**; this is considered the incident-time version only if no driver update was performed after the freeze.
 - The supplied `.enumtag` text was approximately **6.9 MB / 99,999 lines**, almost entirely raw hexadecimal dump-callback bytes. The paste **starts inside an existing data block**, and the only visible block header was near the end (`{8BE1C8F0-B5BD-48FE-BCB7BBD165DEB285} - 0x10 bytes`), so it should not be treated as a complete tag inventory.
 - No legible Vulkan command or NVIDIA timeout root cause could be attributed from the raw `.enumtag` bytes. The command enumerates secondary bugcheck callback blocks; decoding opaque private structures would require knowledge of the data format or specialized debugger extensions.
 - The raw `.enumtag` material may contain system-memory excerpts and hardware metadata; **it is intentionally not copied into this public repository**.
 
-**Safe next step, without starting Bloodborne:** obtain driver version from Windows PowerShell using
-`nvidia-smi --query-gpu=driver_version --format=csv,noheader`, if a version comparison becomes relevant.
+**Version evidence:** tester-reported `nvidia-smi` driver version **617.14**. If precise chronology is needed, confirm whether the NVIDIA driver was updated between the incident and this reading; no need to run Bloodborne again.
 
 ### Potential leads — all UNCONFIRMED
 
@@ -129,7 +129,8 @@ Mapping Form: Loaded
 
 ### Investigation checklist
 
-- [ ] Obtain exact NVIDIA driver version and GPU manufacturer/model; check if thermals are normal in regular desktop use.
+- [x] Obtain tester-reported NVIDIA driver version (**617.14**, pending confirmation that it was unchanged since the incident).
+- [ ] Obtain GPU manufacturer/model; check if thermals are normal in regular desktop use.
 - [ ] Inspect sanitized `lmvm nvlddmkm` and any non-sensitive kernel dump extensions if needed; **do not publish the raw `.dmp` without explicit review**.
 - [ ] Review synchronization/timeline lifetime guarantees for `DeleteImage`, image cache eviction and the scheduler's graphics queue submission.
 - [ ] Compare `test/vram-gc` with the upstream scheduler/GC and a previously more stable Windows build.
